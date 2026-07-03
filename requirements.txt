@@ -1,0 +1,9 @@
+playwright
+openai
+pyyaml
+pandas
+rich
+questionary
+python-dotenv
+flask
+flask-cors

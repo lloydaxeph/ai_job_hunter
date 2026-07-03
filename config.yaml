@@ -1,0 +1,90 @@
+# ─── Search Preferences ───────────────────────────────────────────
+search:
+  keywords: ["ai engineer"]
+  locations: ["Singapore"]     # or "Cebu", "Manila", "Remote" etc.
+  max_results_per_site: 2  # per keyword per site
+  sites: ["jobstreet"]
+
+# ─── Resume Routing Rules ─────────────────────────────────────────
+resumes:
+  - file: "Resumes/Lloyd_Acha_CV_software_engineer.pdf"
+    use_when:
+      - default
+      - software
+
+  - file: "Resumes/Lloyd_Acha_CV_ai_ml_engineer.pdf"
+    use_when:
+      - ai
+      - ml
+      - machine learning
+      - llm
+      - computer vision
+
+  - file: "Resumes/Lloyd_Acha_CV_ai_robotics_engineer.pdf"
+    use_when:
+      - robotics
+      - mechanical
+      - mechatronics
+
+
+# ─── AI Matching ──────────────────────────────────────────────────
+ai:
+  model: "gpt-4o-mini"
+  years_experience: 6
+  score_threshold: 1 # 0-10
+  profile: |
+    Software engineer with 6 years of experience specializing in AI,
+    Computer Vision, ModelOps, MLOps, backend development, cloud deployment,
+    workflow automation, CI/CD, and machine learning production systems.
+
+  skills:
+    - Python
+    - C++
+    - C#
+    - Django
+    - FastAPI
+    - React
+    - Angular
+    - AWS
+    - GCP
+    - Docker
+    - MongoDB
+    - PostgreSQL
+    - OpenCV
+    - Computer Vision
+    - Machine Learning
+    - ModelOps
+    - MLOps
+    - Git
+    - Linux
+    - CI/CD
+    - Jenkins
+
+# --- Banned list ---
+banned:
+  companies: ["PPSI", "ProgressPro Services Inc.", "Trax", "Trax Retail", "FORM"]
+
+# ─── Personal Info for Forms (non-sensitive) ─────────────────────
+# NOTE: Email & passwords go in .env — only safe-to-share info here
+personal:
+  first_name: "Lloyd Nikko"
+  last_name: "Acha"
+  middle_name: "Jusa"
+  phone: "+639394359280"
+  linkedin: "https://www.linkedin.com/in/lloydacha"
+  github: "https://github.com/lloydaxeph"
+  portfolio: "https://lloydaxeph.github.io"
+  work_auth: "need_sponsorship"           # "yes" / "no" / "need_sponsorship"
+
+# ─── Application Settings ─────────────────────────────────────────
+apply:
+  auto_apply: true        # START with false — review first!
+  delay_between_apps: 8    # seconds between applications
+  max_apps_per_run: 3     # safety cap per session
+  headless: false          # false = you can see browser; true = invisible
+
+# ─── Web Dashboard ────────────────────────────────────────────────
+dashboard:
+  enabled: true
+  host: "127.0.0.1"         # localhost only; don't expose to internet
+  auto_open_browser: true  # open dashboard when agent starts
