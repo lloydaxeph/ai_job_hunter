@@ -1,90 +1,79 @@
 # ─── Search Preferences ───────────────────────────────────────────
 search:
-  keywords: ["ai engineer"]
-  locations: ["Singapore"]     # or "Cebu", "Manila", "Remote" etc.
-  max_results_per_site: 2  # per keyword per site
+  keywords: ["job title 1", "job title 2"]
+  locations: ["Preferred Location"]      # e.g. "Singapore", "Remote", "New York"
+  max_results_per_site: 100
   sites: ["jobstreet"]
 
 # ─── Resume Routing Rules ─────────────────────────────────────────
 resumes:
-  - file: "Resumes/Lloyd_Acha_CV_software_engineer.pdf"
+  - file: "Resumes/Software_Resume.pdf"
     use_when:
       - default
       - software
 
-  - file: "Resumes/Lloyd_Acha_CV_ai_ml_engineer.pdf"
+  - file: "Resumes/AI_Resume.pdf"
     use_when:
       - ai
-      - ml
       - machine learning
       - llm
       - computer vision
+      - data science
 
-  - file: "Resumes/Lloyd_Acha_CV_ai_robotics_engineer.pdf"
+  - file: "Resumes/Engineering_Resume.pdf"
     use_when:
       - robotics
       - mechanical
       - mechatronics
 
-
 # ─── AI Matching ──────────────────────────────────────────────────
 ai:
   model: "gpt-4o-mini"
-  years_experience: 6
-  score_threshold: 1 # 0-10
+  years_experience: 5
+  score_threshold: 7 # 0-10
+
   profile: |
-    Software engineer with 6 years of experience specializing in AI,
-    Computer Vision, ModelOps, MLOps, backend development, cloud deployment,
-    workflow automation, CI/CD, and machine learning production systems.
+    Briefly describe your professional background here.
+    Include your years of experience, primary technologies,
+    industries, and the types of roles you're targeting.
 
   skills:
-    - Python
-    - C++
-    - C#
-    - Django
-    - FastAPI
-    - React
-    - Angular
-    - AWS
-    - GCP
-    - Docker
-    - MongoDB
-    - PostgreSQL
-    - OpenCV
-    - Computer Vision
-    - Machine Learning
-    - ModelOps
-    - MLOps
-    - Git
-    - Linux
-    - CI/CD
-    - Jenkins
+    - Skill 1
+    - Skill 2
+    - Skill 3
+    - Skill 4
+    - Skill 5
+    - Skill 6
+    - Skill 7
+    - Skill 8
 
-# --- Banned list ---
+# ─── Banned Companies ─────────────────────────────────────────────
 banned:
-  companies: ["PPSI", "ProgressPro Services Inc.", "Trax", "Trax Retail", "FORM"]
+  companies:
+    - Company Name 1
+    - Company Name 2
 
-# ─── Personal Info for Forms (non-sensitive) ─────────────────────
-# NOTE: Email & passwords go in .env — only safe-to-share info here
+# ─── Personal Info for Forms (non-sensitive) ──────────────────────
+# NOTE: Email & passwords belong in the .env file.
 personal:
-  first_name: "Lloyd Nikko"
-  last_name: "Acha"
-  middle_name: "Jusa"
-  phone: "+639394359280"
-  linkedin: "https://www.linkedin.com/in/lloydacha"
-  github: "https://github.com/lloydaxeph"
-  portfolio: "https://lloydaxeph.github.io"
-  work_auth: "need_sponsorship"           # "yes" / "no" / "need_sponsorship"
+  first_name: "First Name"
+  last_name: "Last Name"
+  middle_name: "Middle Name"
+  phone: "+1234567890"
+  linkedin: "https://www.linkedin.com/in/your-profile"
+  github: "https://github.com/your-username"
+  portfolio: "https://your-portfolio.com"
+  work_auth: "need_sponsorship"   # yes / no / need_sponsorship
 
 # ─── Application Settings ─────────────────────────────────────────
 apply:
-  auto_apply: true        # START with false — review first!
-  delay_between_apps: 8    # seconds between applications
-  max_apps_per_run: 3     # safety cap per session
-  headless: false          # false = you can see browser; true = invisible
+  auto_apply: false          # Recommended to start with false
+  delay_between_apps: 3       # Seconds between applications
+  max_apps_per_run: 100       # Safety limit
+  headless: false             # false = browser visible
 
 # ─── Web Dashboard ────────────────────────────────────────────────
 dashboard:
   enabled: true
-  host: "127.0.0.1"         # localhost only; don't expose to internet
-  auto_open_browser: true  # open dashboard when agent starts
+  host: "127.0.0.1"
+  auto_open_browser: true

@@ -152,5 +152,7 @@ class JobApplier:
             status = applier.apply(page, job)
             if status == JobStatus.APPLIED:
                 jobs_applied += 1
+                console.print(f"[green]{jobs_applied} out of {len(jobs)} available jobs applied.[/green]")
+                console.print(f"[green]---------------------------------------------------------[/green]")
             time.sleep(self.delay)
         console.print(f"[green]{jobs_applied} out of {len(jobs)} available jobs applied.[/green]")
