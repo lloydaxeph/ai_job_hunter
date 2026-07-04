@@ -15,15 +15,12 @@ class BaseScraper(ABC):
         self.filter = filter
         self.console = ConsoleManager().instance
 
-    def scrape(self, page: Page, keyword: str, location: str, max_results: int) -> bool:
+    def scrape(self, page: Page, keyword: str, location: str, max_results: int) -> list:
         jobs = []
         page_number = 1
-
         try:
             base_url = self.build_url(keyword, location)
             while len(jobs) < max_results:
-                self.console.print(f"[cyan]Scraping jobs on page {page_number}...[/cyan]")
-
                 page_url = self.build_page_url(base_url, page_number)
                 page.goto(page_url, wait_until="domcontentloaded")
                 page.wait_for_timeout(3000)
@@ -49,7 +46,7 @@ class BaseScraper(ABC):
                     except Exception:
                         continue
 
-                self.console.print(f"[cyan]Found {len(jobs)} new jobs so far.[/cyan]")
+                self.console.print(f"[cyan][SCRAPPER] Found {len(jobs)} new jobs so far...[/cyan]")
 
                 if len(jobs) >= max_results:
                     break
@@ -58,11 +55,11 @@ class BaseScraper(ABC):
                     break
 
                 page_number += 1 # Next page
-            return len(jobs) > 0
+            return jobs
 
         except Exception as e:
-            self.console.print(f"[red]Scraping failed: {e}[/red]")
-            return False
+            self.console.print(f"[red][SCRAPPER] Scraping failed: {e}[/red]")
+            return []
 
     @abstractmethod
     def build_url(self, keyword: str, location: str) -> str:

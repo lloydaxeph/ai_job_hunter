@@ -15,17 +15,17 @@ class BaseSessionManager(ABC):
         self.session_dir.mkdir(exist_ok=True)
 
         if self.session_file.exists():
-            print(f"Loading existing session: {self.session_file.name}")
+            print(f"[SESSION] Loading existing session: {self.session_file.name}")
             return browser.new_context(storage_state=str(self.session_file))
 
-        print("Creating new browser session...")
+        print("[SESSION] Creating new browser session...")
         return browser.new_context()
 
     def clear_session(self) -> None:
         """Delete the saved session."""
         if self.session_file.exists():
             self.session_file.unlink()
-            print(f"Removed session: {self.session_file.name}")
+            print(f"[SESSION] Removed session: {self.session_file.name}")
 
     @abstractmethod
     def ensure_logged_in(self, context: BrowserContext) -> None:

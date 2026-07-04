@@ -26,9 +26,9 @@ class JobStreetSessionManager(BaseSessionManager):
         print("3. Wait until the homepage is fully loaded.")
         print("=" * 60)
 
-        input("Press ENTER after logging in...")
+        input("[SESSION] Press ENTER after logging in...")
 
         context.storage_state(path=str(self.session_file))
-        print(f"Session saved to {self.session_file}")
+        print(f"[SESSION] Session saved to {self.session_file}")
 
         page.close()

@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import time
 
-from playwright.sync_api import Page
+from playwright.sync_api import sync_playwright, Browser, BrowserContext, Page
 from rich.table import Table
 
 from Logger import Logger, ConsoleManager
 from Scrapers.JobStreet import JobStreetScraper
 from Appliers.JobStreet import JobStreetApplier
-from Constants import JobStatus
+from Authentication.JobStreet import JobStreetSessionManager
+from Constants import JobStatus, JobAgentModes
 from Database.JobRepository import JobRepository
 from Models.JobObject import JobObject
 
@@ -46,43 +47,23 @@ class JobScraper:
             return JobStreetScraper(self.repository, self.filter)
         return None
 
-    def scrape(self, page: Page) -> list[JobObject]:
-        for site in self.cfg["sites"]:
-            scraper = self.get_scraper(site)
-
-            if scraper is None:
-                logger.warning( "No scraper registered for '%s'. Skipping.",site)
-                continue
-
+    def scrape(self, page: Page, site: str) -> list[JobObject]:
+        site_jobs = []
+        scraper = self.get_scraper(site)
+        if scraper is None:
+            logger.warning( "No scraper registered for '%s'. Skipping.",site)
+        else:
             for keyword in self.cfg["keywords"]:
                 for location in self.cfg["locations"]:
-                    console.print(f"[cyan]Scraping {site} → {keyword} ({location})[/cyan]")
+                    console.print(f"[cyan][SCRAPPER] Scraping {site} → {keyword} ({location})[/cyan]")
+                    key_loc_jobs = scraper.scrape(page, keyword, location, self.cfg["max_results_per_site"])
+                    site_jobs = site_jobs + key_loc_jobs
 
-                    scraper.scrape(page, keyword, location, self.cfg["max_results_per_site"])
 
-        final_job_list = self.repository.get_jobs_by_status(status=JobStatus.FOUND)
-
-        console.print(f"[green]Will apply to {len(final_job_list)} jobs.[/green]")
-        console.print(f"--------------------------------------------------------")
+        #final_job_list = self.repository.get_jobs_by_status(status=JobStatus.FOUND)
+        final_job_list = site_jobs
+        console.print(f"[green][SCRAPPER] Found {len(final_job_list)} jobs from {site}.[/green]")
         return final_job_list
-
-    def scrape_job_info(self, page: Page, job: JobObject) -> str:
-        scraper = self.get_scraper(job.site)
-        job, apply_button = scraper.scrape_job_info(page, job)
-
-        if apply_button is None:
-            self.repository.update_status(
-                job_id=job.job_id,status=JobStatus.REQUIRES_MANUAL_REVIEW)
-            return None
-
-        if apply_button == JobStatus.NOT_QUICK_APPLY:
-            self.repository.update_status(
-                job_id=job.job_id,status=JobStatus.NOT_QUICK_APPLY)
-            return None
-
-        self.repository.update_description(
-            job_id=job.job_id, description=job.description)
-        return job
 
 
 class JobReviewer:
@@ -139,20 +120,40 @@ class JobApplier:
             return JobStreetApplier(self.repository, self.cfg)
         return None
 
-    def run(self, page: Page, jobs: list[JobObject]) -> None:
+    def run(self, page: Page, jobs: list[JobObject], mode: JobAgentModes) -> int:
         jobs_applied = 0
-        for job in jobs:
+        for i, job in enumerate(jobs):
+            console.print(f"[green][APPLIER] Job {i+1} out of {len(jobs)} ---------------------------[/green]")
             applier = self.get_applier(job.site)
             if applier is None:
-                logger.warning("No applier registered for '%s'. Skipping '%s'.",
+                logger.warning("[APPLIER] No applier registered for '%s'. Skipping '%s'.",
                                job.site, job.title)
                 self.repository.update_status(job_id=job.job_id, status=JobStatus.FAILED)
                 continue
 
-            status = applier.apply(page, job)
+            if mode == JobAgentModes.MANUAL_REVIEW:
+                status = applier.manual_apply(page, job)
+            else:
+                status = applier.apply(page, job)
             if status == JobStatus.APPLIED:
                 jobs_applied += 1
-                console.print(f"[green]{jobs_applied} out of {len(jobs)} available jobs applied.[/green]")
-                console.print(f"[green]---------------------------------------------------------[/green]")
+                console.print(f"[bold green]----------------------------------------------------[/bold green]")
             time.sleep(self.delay)
-        console.print(f"[green]{jobs_applied} out of {len(jobs)} available jobs applied.[/green]")
+        return jobs_applied
+
+
+class SessionManager:
+    def __init__(self, site: str) -> None:
+        self.site = site
+        self.session = self.get_manager(site)
+
+    def create_context(self, browser: Browser) -> BrowserContext:
+        return self.session.create_context(browser)
+
+    def ensure_logged_in(self, context: BrowserContext) -> None:
+        return self.session.ensure_logged_in(context)
+
+    def get_manager(self, site: str):
+        if site.lower() == "jobstreet":
+            return JobStreetSessionManager()
+        return None

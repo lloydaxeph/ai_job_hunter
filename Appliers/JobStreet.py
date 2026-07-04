@@ -12,8 +12,13 @@ class JobStreetApplier(BaseApplier):
         super().__init__(repository, cfg)
 
     def check_apply_button(self, page: Page) -> str:
-        apply_btn = page.locator("[data-automation='job-detail-apply']").first
-        if apply_btn.count() == 0:
+        apply_btn = page.locator(
+            "[data-automation='job-detail-apply']"
+        ).locator("visible=true").first
+
+        try:
+            apply_btn.wait_for(state="visible", timeout=8000)
+        except TimeoutError:
             return JobStatus.REQUIRES_MANUAL_REVIEW
 
         if apply_btn.inner_text().strip().lower() != "quick apply":
@@ -285,52 +290,55 @@ class JobStreetApplier(BaseApplier):
             except Exception:
                 continue
 
+    def check_for_errors(self, page: Page) -> bool:
+        """Returns True if application validation errors are present."""
+        error_panel = page.locator("#errorPanel")
+
+        return (
+                error_panel.count() > 0
+                and error_panel.is_visible()
+        )
+
     def click_continue(
-        self,
-        page: Page,
+            self,
+            page: Page,
     ) -> bool:
         button = page.locator(
             "[data-testid='continue-button']"
-        ).first
+        ).locator("visible=true").first
 
         if not button.count():
             return False
 
-        button.scroll_into_view_if_needed()
-        button.click()
+        button.scroll_into_view_if_needed(timeout=5000)
+        button.click(timeout=5000)
 
         return True
 
     def click_next(
-        self,
-        page: Page,
+            self,
+            page: Page,
     ) -> bool:
         button = page.locator(
             "button:has-text('Next')"
-        ).first
+        ).locator("visible=true").first
 
         if not button.count():
             return False
 
-        button.click()
+        button.scroll_into_view_if_needed(timeout=5000)
+        button.click(timeout=5000)
 
         return True
 
-    def click_submit(
-        self,
-        page: Page,
-    ) -> bool:
+    def click_submit(self, page: Page) -> bool:
         button = page.locator(
-            """
-            button[type='submit'],
-            button:has-text('Submit application')
-            """
-        ).first
+            "button[type='submit'], button:has-text('Submit application')"
+        ).locator("visible=true").first
 
         if not button.count():
             return False
 
-        button.scroll_into_view_if_needed()
-        button.click()
-
+        button.scroll_into_view_if_needed(timeout=5000)
+        button.click(timeout=5000)
         return True

@@ -29,23 +29,80 @@ resumes:
 # ─── AI Matching ──────────────────────────────────────────────────
 ai:
   model: "gpt-4o-mini"
-  years_experience: 5
+  years_experience: 6
   score_threshold: 7 # 0-10
 
-  profile: |
-    Briefly describe your professional background here.
-    Include your years of experience, primary technologies,
-    industries, and the types of roles you're targeting.
+  personal_summary: |
+    Software engineer with 6 years of experience specializing in AI,
+    Computer Vision, ModelOps, MLOps, backend development, cloud deployment,
+    workflow automation, CI/CD, and machine learning production systems.
+    Background also includes mechatronics/electrical engineering and robotics,
+    giving strong fundamentals in embedded systems and hardware-software integration.
+
+  work_experience:
+    - title: "Software Engineer"
+      company: "Company A"
+      duration: "2022 - Present"
+      details: |
+        - Built and deployed computer vision pipelines for defect detection using OpenCV and PyTorch.
+        - Designed MLOps workflows for model versioning, monitoring, and retraining on AWS.
+        - Developed backend services with FastAPI and Django, integrated with PostgreSQL and MongoDB.
+        - Set up CI/CD pipelines with Jenkins for automated testing and deployment.
+
+    - title: "Junior Software Engineer"
+      company: "Company B"
+      duration: "2019 - 2022"
+      details: |
+        - Developed embedded software and ROS-based controls for robotics prototypes.
+        - Built internal tooling and dashboards using React and Python.
+        - Worked with SCADA systems for industrial automation and monitoring.
 
   skills:
-    - Skill 1
-    - Skill 2
-    - Skill 3
-    - Skill 4
-    - Skill 5
-    - Skill 6
-    - Skill 7
-    - Skill 8
+    - Python
+    - C++
+    - C#
+    - Django
+    - FastAPI
+    - React
+    - Angular
+    - AWS
+    - GCP
+    - Docker
+    - MongoDB
+    - PostgreSQL
+    - OpenCV
+    - Computer Vision
+    - Machine Learning
+    - ModelOps
+    - MLOps
+    - Git
+    - Linux
+    - CI/CD
+    - Jenkins
+    - Pytorch
+    - scikit-learn
+    - TensorFlow
+    - RAG
+    - LLM
+    - Generative AI
+    - Hyperparameter Tuning
+    - microcontroller
+    - robotics
+    - mechanical engineering
+    - mechatronics engineering
+    - electrical engineering
+    - ROS
+    - SCADA
+    - embedded software
+
+  education:
+    - degree: "BS Mechatronics Engineering"
+      school: "Your University"
+      year: "2018"
+
+  languages:
+    - English
+    - Filipino
 
 # ─── Banned Companies ─────────────────────────────────────────────
 banned:
