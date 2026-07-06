@@ -7,8 +7,11 @@ from rich.table import Table
 
 from Logger import Logger, ConsoleManager
 from Scrapers.JobStreet import JobStreetScraper
+from Scrapers.Linkedin import LinkedInScraper
 from Appliers.JobStreet import JobStreetApplier
+from Appliers.LinkedIn import LinkedInApplier
 from Authentication.JobStreet import JobStreetSessionManager
+from Authentication.LinkedIn import LinkedInSessionManager
 from Constants import JobStatus, JobAgentModes
 from Database.JobRepository import JobRepository
 from Models.JobObject import JobObject
@@ -45,6 +48,8 @@ class JobScraper:
     def get_scraper(self, site: str):
         if site.lower() == "jobstreet":
             return JobStreetScraper(self.repository, self.filter)
+        elif site.lower() == "linkedin":
+            return LinkedInScraper(self.repository, self.filter)
         return None
 
     def scrape(self, page: Page, site: str) -> list[JobObject]:
@@ -118,6 +123,8 @@ class JobApplier:
     def get_applier(self, site: str):
         if site.lower() == "jobstreet":
             return JobStreetApplier(self.repository, self.cfg)
+        elif site.lower() == "linkedin":
+            return LinkedInApplier(self.repository, self.cfg)
         return None
 
     def run(self, page: Page, jobs: list[JobObject], mode: JobAgentModes) -> int:
@@ -156,4 +163,6 @@ class SessionManager:
     def get_manager(self, site: str):
         if site.lower() == "jobstreet":
             return JobStreetSessionManager()
+        elif site.lower() == "linkedin":
+            return LinkedInSessionManager()
         return None

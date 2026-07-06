@@ -29,158 +29,93 @@ class BaseApplier(ABC):
         self.repository.update_score(job_id=job.job_id, score=job.score)
         return job
 
-    def apply(self, page: Page, job: JobObject) -> str:
-        """Apply to a single job."""
-        try:
-            self.console.print(f"[cyan]{self.app} Opening {job.title} @ {job.company}...[/cyan]")
-            page.goto(job.url, wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_load_state("networkidle")
+    def _open_job_item(self, page: Page, job: JobObject):
+        self.console.print(f"[cyan]{self.app} Opening {job.title} @ {job.company}...[/cyan]")
+        page.goto(job.url, wait_until="domcontentloaded", timeout=30000)
+        #page.wait_for_load_state("networkidle")
 
-            status = self.check_apply_button(page)
-            if status != "Quick Apply":
-                self.console.print(f"[red]{self.app} FAILED: Job status = {status}[/red]")
-                self.repository.update_status(job_id=job.job_id, status=status)
-                return status
-            self.console.print(f"[cyan]{self.app} Confirmed that job is Quick Apply.[/cyan]")
-
-            if self.is_already_applied(page):
-                status = JobStatus.APPLIED
-                self.console.print(f"[red]{self.app} FAILED: You already applied to this job.[/red]")
-                self.repository.update_status(job_id=job.job_id, status=status)
-                return status
-
-            # Check if job matched
-            job = self._score_job(page, job)
-            if job.score >= self.score_threshold:
-                self.console.print(f"{self.app} MATCHED! Score:{job.score} ")
-                self.click_apply(page)
-                page.wait_for_load_state("networkidle")
-
-                resume = pick_resume(job.title, self.cfg)
-                for step in range(20):
-                    if step == 0:
-                        self.console.print(f"[cyan]{self.app} using {resume}...[/cyan]")
-                        self.upload_resume(page, resume)
-                        self.write_cover_letter(page, "")
-                    else:
-                        self.fill_known_fields(page, self.cfg)
-                        self.fill_select_questions(page)
-                        self.answer_yes_questions(page)
-                        if self.check_for_errors(page):
-                            break
-
-                    if self.click_continue(page):
-                        page.wait_for_load_state("networkidle")
-                        continue
-
-                    if self.click_next(page):
-                        page.wait_for_load_state("networkidle")
-                        continue
-
-                    if self.click_submit(page):
-                        page.wait_for_timeout(3000)
-                        self.console.print(f"[cyan]{self.app} JOB APPLIED![/cyan]")
-                        status = JobStatus.APPLIED
-                        self.repository.update_status(job_id=job.job_id, status=status)
-                        self.repository.update_resume_used(job_id=job.job_id, resume_used=resume)
-                        return status
-
-                    status = JobStatus.REQUIRES_MANUAL_REVIEW
-                    self.repository.update_status(job_id=job.job_id, status=status)
-                    self.console.print(f"[cyan]{self.app} FAILED! Job needs manual review[/cyan]")
-                    return status
-            else:
-                status = JobStatus.DID_NOT_MATCH
-                self.repository.update_status(job_id=job.job_id, status=status)
-                return status
-
-            status = JobStatus.REQUIRES_MANUAL_REVIEW
+    def _check_apply_button(self, page: Page, job: JobObject):
+        status = self.check_apply_button(page)
+        if status != "Quick Apply":
+            self.console.print(f"[red]{self.app} FAILED: Job status = {status}[/red]")
             self.repository.update_status(job_id=job.job_id, status=status)
-            self.console.print(f"[cyan]{self.app} FAILED! Job needs manual review[/cyan]")
-            return status
+            return False, status
+        self.console.print(f"[cyan]{self.app} Confirmed that job is Quick Apply.[/cyan]")
+        return True, None
 
-        except TimeoutError:
-            self.console.print(f"[red]{self.app} FAILED! Cannot apply to {job.title} @ {job.company} due to timeout.[/red]")
-            status = JobStatus.FAILED
+    def _check_already_applied(self, page: Page, job: JobObject):
+        if self.is_already_applied(page):
+            status = JobStatus.APPLIED
+            self.console.print(f"[red]{self.app} FAILED: You already applied to this job.[/red]")
             self.repository.update_status(job_id=job.job_id, status=status)
-            return status
+            return True, status
+        return False, None
 
-        except Exception as e:
-            self.console.print(f"[red]{self.app} FAILED! Cannot apply to {job.title} @ {job.company}: {e}.[/red]")
-            status = JobStatus.FAILED
-            self.repository.update_status(job_id=job.job_id, status=status)
-            return status
-
-    def manual_apply(self, page: Page, job: JobObject) -> str:
-        """Apply to a single job."""
-        try:
-            self.console.print(f"[cyan]{self.app} Opening {job.title} @ {job.company}...[/cyan]")
-            page.goto(job.url, wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_load_state("networkidle")
-
-            # Check if already applied
-            if self.is_already_applied(page):
-                status = JobStatus.APPLIED
-                self.console.print(f"[red]{self.app} FAILED: You already applied to this job.[/red]")
-                self.repository.update_status(job_id=job.job_id, status=status)
-                return status
-
+    def _score_and_match_job(self, page: Page, job: JobObject):
+        job = self._score_job(page, job)
+        if job.score >= self.score_threshold:
+            self.console.print(f"{self.app} MATCHED! Score:{job.score} ")
             self.click_apply(page)
+            is_already_applied, status = self._check_already_applied(page, job)
+            if is_already_applied:
+                return status
             page.wait_for_load_state("networkidle")
 
             resume = pick_resume(job.title, self.cfg)
-            for step in range(10):
-                if step == 0:
-                    self.console.print(f"[cyan]{self.app} using {resume}...[/cyan]")
-                    self.upload_resume(page, resume)
-                    self.write_cover_letter(page, "")
-                else:
-                    self.fill_known_fields(page, self.cfg)
-                    self.fill_select_questions(page)
-                    self.answer_yes_questions(page)
+            status = self.run_apply_step(page, job, resume)
+            return status
+        else:
+            status = JobStatus.DID_NOT_MATCH
+            self.repository.update_status(job_id=job.job_id, status=status)
+            return status
 
-                    if self.check_for_errors(page):
-                        self.wait_for_manual_intervention(page)
+    def _apply_timeout(self, job: JobObject) -> str:
+        self.console.print(f"[red]{self.app} FAILED! Cannot apply to {job.title} @ {job.company} due to timeout.[/red]")
+        status = JobStatus.FAILED
+        self.repository.update_status(job_id=job.job_id, status=status)
+        return status
 
-                if self.click_continue(page):
-                    page.wait_for_load_state("networkidle")
-                    continue
+    def _apply_exception(self, job: JobObject, e: Exception) -> str:
+        self.console.print(f"[red]{self.app} FAILED! Cannot apply to {job.title} @ {job.company}: {e}.[/red]")
+        status = JobStatus.FAILED
+        self.repository.update_status(job_id=job.job_id, status=status)
+        return status
 
-                if self.click_next(page):
-                    page.wait_for_load_state("networkidle")
-                    continue
-
-                if self.click_submit(page):
-                    page.wait_for_timeout(3000)
-                    self.console.print(f"[cyan]{self.app} JOB APPLIED![/cyan]")
-                    status = JobStatus.APPLIED
-                    self.repository.update_status(job_id=job.job_id, status=status)
-                    self.repository.update_resume_used(job_id=job.job_id, resume_used=resume)
-
-                    return status
-
-                status = JobStatus.REQUIRES_MANUAL_REVIEW
-                self.repository.update_status(job_id=job.job_id, status=status)
-                self.console.print(f"[cyan]{self.app} FAILED! Job needs manual review[/cyan]")
+    def apply(self, page: Page, job: JobObject) -> str:
+        try:
+            self._open_job_item(page, job)
+            is_quick_apply, status = self._check_apply_button(page, job)
+            if not is_quick_apply:
                 return status
 
-            status = JobStatus.REQUIRES_MANUAL_REVIEW
-            self.repository.update_status(job_id=job.job_id, status=status)
-            self.console.print(f"[cyan]{self.app} FAILED! Job needs manual review again.[/cyan]")
+            status = self._score_and_match_job(page, job)
             return status
 
         except TimeoutError:
-            self.console.print(
-                f"[red]{self.app} FAILED! Cannot apply to {job.title} @ {job.company} due to timeout.[/red]")
-            status = JobStatus.FAILED
-            self.repository.update_status(job_id=job.job_id, status=status)
-            return status
+            return self._apply_timeout(job)
 
         except Exception as e:
-            self.console.print(f"[red]{self.app} FAILED! Cannot apply to {job.title} @ {job.company}: {e}.[/red]")
-            status = JobStatus.FAILED
-            self.repository.update_status(job_id=job.job_id, status=status)
+            return self._apply_exception(job, e)
+
+    def manual_apply(self, page: Page, job: JobObject) -> str:
+        try:
+            self._open_job_item(page, job)
+            self.click_apply(page)
+            is_already_applied, status = self._check_already_applied(page, job)
+            if is_already_applied:
+                return status
+            page.wait_for_load_state("networkidle")
+
+            resume = pick_resume(job.title, self.cfg)
+            status = self.run_apply_step(page, job, resume,
+                                         steps=10, error_intervein=True)
             return status
+
+        except TimeoutError:
+            return self._apply_timeout(job)
+
+        except Exception as e:
+            return self._apply_exception(job, e)
 
     def is_already_applied(self, page: Page) -> bool:
         body = page.locator("body").inner_text().lower()
@@ -292,4 +227,8 @@ class BaseApplier(ABC):
 
     @abstractmethod
     def check_for_errors(self, page: Page) -> bool :
+        pass
+
+    @abstractmethod
+    def run_apply_step(self, page: Page, job: JobObject, resume: str, steps: int = 20, error_intervein: bool = False) -> str :
         pass

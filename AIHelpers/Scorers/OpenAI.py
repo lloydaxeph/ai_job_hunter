@@ -99,9 +99,9 @@ class AiJobScorer:
         4 = Weak fit, only surface-level or tangential overlap.
         3 or below = Poor fit, different domain or unrelated responsibilities.
 
-        Respond ONLY with valid JSON:
+        Respond ONLY with valid JSON in this exact schema:
         {{
-          "score": 8,
+          "score": <integer from 1 to 10>,
           "reason": "One concise sentence explaining the score.",
           "missing": ["important missing skill 1", "important missing skill 2"]
         }}
@@ -111,12 +111,16 @@ class AiJobScorer:
             model=ai_cfg["model"],
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
-            max_tokens=200,
+            max_tokens=400,
+            response_format={"type": "json_object"},
         )
         raw = resp.choices[0].message.content.strip()
+
         try:
             return json.loads(raw)
-        except Exception:
+        except Exception as e:
+            self.console.print(f"[red]JSON parse error: {e}[/red]")
+            self.console.print(f"[yellow]Raw response: {raw}[/yellow]")
             return {
                 "score": 0,
                 "reason": "parse error",

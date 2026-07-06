@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, TimeoutError
 
 from Database.JobRepository import JobRepository
 from Appliers.BaseApplier import BaseApplier
@@ -8,10 +8,23 @@ from Constants import JobStatus
 from Models import JobObject
 
 
-class JobStreetApplier(BaseApplier):
+class LinkedInApplier(BaseApplier):
+    """
+    Applier for LinkedIn's "Easy Apply" flow.
+
+    Unlike JobStreet, LinkedIn's application flow happens inside a modal
+    dialog (`div.jobs-easy-apply-modal`) that is paginated with
+    Next / Review / Submit buttons rather than full page navigations.
+    """
+
+    MODAL_SELECTOR = "div.jobs-easy-apply-modal"
+
     def __init__(self, repository: JobRepository, cfg: dict):
         super().__init__(repository, cfg)
 
+    # ------------------------------------------------------------------ #
+    # Core apply loop
+    # ------------------------------------------------------------------ #
     def run_apply_step(self, page: Page, job: JobObject, resume: str,
                        steps: int = 20, error_intervein: bool = False) -> str:
         for step in range(steps):
@@ -30,11 +43,11 @@ class JobStreetApplier(BaseApplier):
                         break
 
             if self.click_continue(page):
-                page.wait_for_load_state("networkidle")
+                page.wait_for_timeout(1000)
                 continue
 
             if self.click_next(page):
-                page.wait_for_load_state("networkidle")
+                page.wait_for_timeout(1000)
                 continue
 
             if self.click_submit(page):
@@ -43,20 +56,25 @@ class JobStreetApplier(BaseApplier):
                 status = JobStatus.APPLIED
                 self.repository.update_status(job_id=job.job_id, status=status)
                 self.repository.update_resume_used(job_id=job.job_id, resume_used=resume)
+                self._dismiss_post_apply_modal(page)
                 return status
 
             status = JobStatus.REQUIRES_MANUAL_REVIEW
             self.repository.update_status(job_id=job.job_id, status=status)
             self.console.print(f"[cyan]{self.app} FAILED! Job needs manual review[/cyan]")
             return status
+
         status = JobStatus.REQUIRES_MANUAL_REVIEW
         self.repository.update_status(job_id=job.job_id, status=status)
         self.console.print(f"[cyan]{self.app} FAILED! Job needs manual review[/cyan]")
         return status
 
+    # ------------------------------------------------------------------ #
+    # Apply-button / status checks
+    # ------------------------------------------------------------------ #
     def check_apply_button(self, page: Page) -> str:
         apply_btn = page.locator(
-            "[data-automation='job-detail-apply']"
+            "button.jobs-apply-button"
         ).locator("visible=true").first
 
         try:
@@ -65,17 +83,19 @@ class JobStreetApplier(BaseApplier):
             print("[APPLIER] ERROR!: Can't find Apply button.")
             return JobStatus.REQUIRES_MANUAL_REVIEW
 
-        if apply_btn.inner_text().strip().lower() != "quick apply":
+        label = apply_btn.inner_text().strip().lower()
+
+        if "easy apply" not in label:
             return JobStatus.NOT_QUICK_APPLY
+
         return "Quick Apply"
 
     def get_job_description(self, page: Page) -> str:
         selectors = (
-            "[data-automation='jobAdDetails']",  # JobStreet
-            "[data-testid='jobDescription']",
             "#job-details",
-            ".jobsearch-jobDescriptionText",
-            ".description__text",
+            ".jobs-description__content",
+            ".jobs-box__html-content",
+            ".jobs-description-content__text",
         )
 
         for selector in selectors:
@@ -91,94 +111,86 @@ class JobStreetApplier(BaseApplier):
 
     def click_apply(self, page: Page):
         page.locator(
-            "[data-automation='job-detail-apply']"
+            "button.jobs-apply-button"
         ).first.click()
 
+        page.locator(self.MODAL_SELECTOR).first.wait_for(
+            state="visible", timeout=10000
+        )
+
+    # ------------------------------------------------------------------ #
+    # Resume / cover letter
+    # ------------------------------------------------------------------ #
     def upload_resume(
         self,
         page: Page,
         resume_path: str,
     ):
         target_resume = Path(resume_path).name
-        resume_container = page.locator("[data-testid='resumeSelectInput']")
-        resume_container.wait_for(timeout=10000)
+        modal = page.locator(self.MODAL_SELECTOR).first
 
-        select = resume_container.locator("select[data-testid='select-input']")
-        select.wait_for(timeout=10000)
+        # LinkedIn shows a list of previously-uploaded resumes as selectable
+        # cards, each with the filename in a title/span element.
+        resume_cards = modal.locator("[data-test-resume-title], .jobs-document-upload-redesign-card__file-name")
 
-        if select.count():
-            options = select.locator("option")
-            for i in range(options.count()):
-                option = options.nth(i)
-                text = (option.text_content() or "").strip()
-
-                if not text or text == "Please select a resumé":
-                    continue
+        if resume_cards.count():
+            for i in range(resume_cards.count()):
+                card = resume_cards.nth(i)
+                text = (card.text_content() or "").strip()
 
                 if target_resume in text:
-                    value = option.get_attribute("value")
-
-                    select.select_option(value=value)
+                    card.click()
                     page.wait_for_timeout(500)
                     return
 
-        upload = page.locator("input[type='file']").first
+        # Otherwise, upload a new resume via the hidden file input.
+        upload = modal.locator("input[type='file']").first
 
         if not upload.count():
             raise RuntimeError("Resume upload input not found.")
 
         upload.set_input_files(str(Path(resume_path).resolve()))
+        page.wait_for_timeout(1500)
 
-        page.wait_for_timeout(1000)
-
-        page.wait_for_function(
-            """(filename) => {
-                const select = document.querySelector(
-                    "select[data-testid='select-input']"
-                );
-
-                if (!select) return false;
-
-                return Array.from(select.options)
-                    .some(o => (o.textContent || '').includes(filename));
-            }""",
-            arg=target_resume,
-            timeout=15000,
-        )
-
-        options = select.locator("option")
-
-        for i in range(options.count()):
-            option = options.nth(i)
-            text = (option.text_content() or "").strip()
-
-            if target_resume in text:
-                value = option.get_attribute("value")
-                select.select_option(value=value)
-                page.wait_for_timeout(500)
-                return
-
-        raise RuntimeError(f"Unable to upload/select resume: {target_resume}" )
+        try:
+            modal.locator(
+                f"text={target_resume}"
+            ).first.wait_for(state="visible", timeout=10000)
+        except TimeoutError:
+            # Some LinkedIn variants auto-select the newly uploaded resume
+            # without surfacing its filename anywhere else in the DOM.
+            pass
 
     def write_cover_letter(
-            self,
-            page: Page,
-            body: str = "",
+        self,
+        page: Page,
+        body: str = "",
     ):
-        option = page.locator(
-            "[data-testid='coverLetter-method-none']"
+        modal = page.locator(self.MODAL_SELECTOR).first
+
+        textarea = modal.locator(
+            "textarea[id*='coverLetter' i], textarea[name*='coverLetter' i]"
         ).first
 
-        option.wait_for(timeout=10000)
+        if not textarea.count():
+            return
+
+        try:
+            if not textarea.is_visible():
+                return
+        except Exception:
+            return
 
         if not body or not body.strip():
-            option.check()
-            page.wait_for_timeout(500)
             return
 
         # TODO: Implement custom cover letter.
-        pass
+        textarea.fill(body)
+        page.wait_for_timeout(300)
 
+    # ------------------------------------------------------------------ #
+    # Field / question filling
+    # ------------------------------------------------------------------ #
     def fill_known_fields(
         self,
         page: Page,
@@ -188,7 +200,7 @@ class JobStreetApplier(BaseApplier):
         credentials = cfg["credentials"]
 
         values = {
-            "email": credentials["jobstreet_email"],
+            "email": credentials.get("linkedin_email", ""),
             "phone": personal["phone"],
             "linkedin": personal["linkedin"],
             "github": personal["github"],
@@ -201,15 +213,17 @@ class JobStreetApplier(BaseApplier):
             ),
         }
 
+        modal = page.locator(self.MODAL_SELECTOR).first
+
         for key, value in values.items():
             if not value:
                 continue
 
-            locator = page.locator(
+            locator = modal.locator(
                 f"""
                 input[name*="{key}" i],
                 input[id*="{key}" i],
-                input[placeholder*="{key}" i]
+                input[aria-label*="{key}" i]
                 """
             ).first
 
@@ -223,7 +237,8 @@ class JobStreetApplier(BaseApplier):
         self,
         page: Page,
     ):
-        selects = page.locator("select")
+        modal = page.locator(self.MODAL_SELECTOR).first
+        selects = modal.locator("select")
 
         for i in range(selects.count()):
             select = selects.nth(i)
@@ -235,7 +250,7 @@ class JobStreetApplier(BaseApplier):
                     option = options.nth(j)
                     text = option.inner_text().lower()
 
-                    if "more than 5 years" in text:
+                    if "more than 5 years" in text or "yes" in text:
                         value = option.get_attribute("value")
 
                         if value:
@@ -243,6 +258,19 @@ class JobStreetApplier(BaseApplier):
 
                         break
 
+            except Exception:
+                continue
+
+        # Numeric "years of experience" text inputs are common on LinkedIn
+        # and don't use <select> elements.
+        number_inputs = modal.locator("input[type='text'][id*='numeric' i], input[type='number']")
+
+        for i in range(number_inputs.count()):
+            field = number_inputs.nth(i)
+
+            try:
+                if field.is_visible() and not (field.input_value() or "").strip():
+                    field.fill("5")
             except Exception:
                 continue
 
@@ -295,9 +323,13 @@ class JobStreetApplier(BaseApplier):
             "full stack",
             "devops",
             "cloud",
+            "sponsorship",
+            "authorized to work",
+            "work authorization",
         }
 
-        fieldsets = page.locator("fieldset")
+        modal = page.locator(self.MODAL_SELECTOR).first
+        fieldsets = modal.locator("fieldset")
 
         for i in range(fieldsets.count()):
             fieldset = fieldsets.nth(i)
@@ -305,7 +337,7 @@ class JobStreetApplier(BaseApplier):
             try:
                 question = (
                     fieldset
-                    .locator("legend")
+                    .locator("legend, .fb-dash-form-element__label")
                     .first
                     .inner_text()
                     .lower()
@@ -336,35 +368,34 @@ class JobStreetApplier(BaseApplier):
 
     def check_for_errors(self, page: Page) -> bool:
         """Returns True if application validation errors are present."""
-        error_panel = page.locator("#errorPanel")
+        modal = page.locator(self.MODAL_SELECTOR).first
 
-        return (
-                error_panel.count() > 0
-                and error_panel.is_visible()
+        error_elements = modal.locator(
+            ".artdeco-inline-feedback--error, [data-test-form-element-error-text]"
         )
 
+        return error_elements.count() > 0 and error_elements.first.is_visible()
+
+    # ------------------------------------------------------------------ #
+    # Modal navigation buttons
+    # ------------------------------------------------------------------ #
     def click_continue(
-            self,
-            page: Page,
+        self,
+        page: Page,
     ) -> bool:
-        button = page.locator(
-            "[data-testid='continue-button']"
-        ).locator("visible=true").first
-
-        if not button.count():
-            return False
-
-        button.scroll_into_view_if_needed(timeout=5000)
-        button.click(timeout=5000)
-
-        return True
+        # LinkedIn does not have a distinct "Continue" step separate from
+        # "Next" / "Review" — this is a no-op kept only to satisfy the
+        # BaseApplier contract.
+        return False
 
     def click_next(
-            self,
-            page: Page,
+        self,
+        page: Page,
     ) -> bool:
-        button = page.locator(
-            "button:has-text('Next')"
+        modal = page.locator(self.MODAL_SELECTOR).first
+
+        button = modal.locator(
+            "button[aria-label='Continue to next step'], button[aria-label='Review your application']"
         ).locator("visible=true").first
 
         if not button.count():
@@ -376,8 +407,10 @@ class JobStreetApplier(BaseApplier):
         return True
 
     def click_submit(self, page: Page) -> bool:
-        button = page.locator(
-            "button[type='submit'], button:has-text('Submit application')"
+        modal = page.locator(self.MODAL_SELECTOR).first
+
+        button = modal.locator(
+            "button[aria-label='Submit application']"
         ).locator("visible=true").first
 
         if not button.count():
@@ -386,3 +419,18 @@ class JobStreetApplier(BaseApplier):
         button.scroll_into_view_if_needed(timeout=5000)
         button.click(timeout=5000)
         return True
+
+    # ------------------------------------------------------------------ #
+    # Helpers
+    # ------------------------------------------------------------------ #
+    def _dismiss_post_apply_modal(self, page: Page):
+        """Close the 'Application sent' confirmation modal, if shown."""
+        try:
+            dismiss_btn = page.locator(
+                "button[aria-label='Dismiss'], button[aria-label='Done']"
+            ).locator("visible=true").first
+
+            if dismiss_btn.count():
+                dismiss_btn.click(timeout=3000)
+        except Exception:
+            pass
