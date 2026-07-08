@@ -32,6 +32,9 @@ def get_banned_companies(cfg):
     """Return banned companies from config."""
     return [company.lower() for company in cfg.get("banned", {}).get("companies", [])]
 
+def get_banned_titles(cfg):
+    return [title.lower() for title in cfg.get("banned", {}).get("titles", [])]
+
 
 def pick_resume(job_title: str, cfg: dict) -> str:
     """

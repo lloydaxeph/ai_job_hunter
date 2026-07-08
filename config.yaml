@@ -1,136 +1,167 @@
 # ─── Search Preferences ───────────────────────────────────────────
 search:
-  keywords: ["job title 1", "job title 2"]
-  locations: ["Preferred Location"]      # e.g. "Singapore", "Remote", "New York"
-  max_results_per_site: 100
-  sites: ["jobstreet"]
+  keywords: ["keyword1", "keyword2"]
+  locations: ["location1", "location2"]
+  max_results_per_site: 10
+  sites: ["site1", "site2"]
 
 # ─── Resume Routing Rules ─────────────────────────────────────────
 resumes:
-  - file: "Resumes/Software_Resume.pdf"
+  - file: "Resumes/resume1.pdf"
     use_when:
-      - default
-      - software
+      - keyword1
+      - keyword2
 
-  - file: "Resumes/AI_Resume.pdf"
+  - file: "Resumes/resume2.pdf"
     use_when:
-      - ai
-      - machine learning
-      - llm
-      - computer vision
-      - data science
-
-  - file: "Resumes/Engineering_Resume.pdf"
-    use_when:
-      - robotics
-      - mechanical
-      - mechatronics
+      - keyword3
+      - keyword4
 
 # ─── AI Matching ──────────────────────────────────────────────────
 ai:
-  model: "gpt-4o-mini"
-  years_experience: 6
-  score_threshold: 7 # 0-10
+  model: "model-name"
+  years_experience: 0
+  score_threshold: 7
 
   personal_summary: |
-    Software engineer with 6 years of experience specializing in AI,
-    Computer Vision, ModelOps, MLOps, backend development, cloud deployment,
-    workflow automation, CI/CD, and machine learning production systems.
-    Background also includes mechatronics/electrical engineering and robotics,
-    giving strong fundamentals in embedded systems and hardware-software integration.
+    Brief professional summary goes here.
 
   work_experience:
-    - title: "Software Engineer"
-      company: "Company A"
-      duration: "2022 - Present"
+    - title: "Job Title"
+      company: "Company Name"
+      duration: "Start Date - End Date"
       details: |
-        - Built and deployed computer vision pipelines for defect detection using OpenCV and PyTorch.
-        - Designed MLOps workflows for model versioning, monitoring, and retraining on AWS.
-        - Developed backend services with FastAPI and Django, integrated with PostgreSQL and MongoDB.
-        - Set up CI/CD pipelines with Jenkins for automated testing and deployment.
-
-    - title: "Junior Software Engineer"
-      company: "Company B"
-      duration: "2019 - 2022"
-      details: |
-        - Developed embedded software and ROS-based controls for robotics prototypes.
-        - Built internal tooling and dashboards using React and Python.
-        - Worked with SCADA systems for industrial automation and monitoring.
+        - Achievement or responsibility
+        - Achievement or responsibility
+        - Achievement or responsibility
 
   skills:
-    - Python
-    - C++
-    - C#
-    - Django
-    - FastAPI
-    - React
-    - Angular
-    - AWS
-    - GCP
-    - Docker
-    - MongoDB
-    - PostgreSQL
-    - OpenCV
-    - Computer Vision
-    - Machine Learning
-    - ModelOps
-    - MLOps
-    - Git
-    - Linux
-    - CI/CD
-    - Jenkins
-    - Pytorch
-    - scikit-learn
-    - TensorFlow
-    - RAG
-    - LLM
-    - Generative AI
-    - Hyperparameter Tuning
-    - microcontroller
-    - robotics
-    - mechanical engineering
-    - mechatronics engineering
-    - electrical engineering
-    - ROS
-    - SCADA
-    - embedded software
+    - Skill 1
+    - Skill 2
+    - Skill 3
 
   education:
-    - degree: "BS Mechatronics Engineering"
-      school: "Your University"
-      year: "2018"
+    - degree: "Degree Name"
+      school: "School Name"
+      year: "Year"
 
   languages:
-    - English
-    - Filipino
+    - Language 1
+    - Language 2
 
-# ─── Banned Companies ─────────────────────────────────────────────
+# ─── Banned List ──────────────────────────────────────────────────
 banned:
   companies:
-    - Company Name 1
-    - Company Name 2
+    - "Company 1"
+    - "Company 2"
+
+  titles:
+    - "Title 1"
+    - "Title 2"
 
 # ─── Personal Info for Forms (non-sensitive) ──────────────────────
-# NOTE: Email & passwords belong in the .env file.
+# NOTE: Email & passwords go in .env — only safe-to-share info here
 personal:
   first_name: "First Name"
   last_name: "Last Name"
   middle_name: "Middle Name"
-  phone: "+1234567890"
-  linkedin: "https://www.linkedin.com/in/your-profile"
-  github: "https://github.com/your-username"
-  portfolio: "https://your-portfolio.com"
+  phone: "+10000000000"
+  linkedin: "https://linkedin.com/in/username"
+  github: "https://github.com/username"
+  portfolio: "https://portfolio.com"
   work_auth: "need_sponsorship"   # yes / no / need_sponsorship
 
 # ─── Application Settings ─────────────────────────────────────────
 apply:
-  auto_apply: false          # Recommended to start with false
-  delay_between_apps: 3       # Seconds between applications
-  max_apps_per_run: 100       # Safety limit
-  headless: false             # false = browser visible
+  auto_apply: true
+  delay_between_apps: 3
+  max_apps_per_run: 100
+  headless: false
 
 # ─── Web Dashboard ────────────────────────────────────────────────
 dashboard:
   enabled: true
   host: "127.0.0.1"
   auto_open_browser: true
+
+# ─── ABOUT ME ─────────────────────────────────────────────────────
+about_me: |
+  Personal Information:
+  - Name: Your Name
+  - Gender: Your Gender
+  - Date of Birth: Month Day, Year
+  - Nationality: Your Nationality
+  - Citizenship: Your Country
+
+  I am a [Job Title] with [X] years of professional experience.
+
+  I currently work at [Company Name], where I am responsible for:
+  - Responsibility 1
+  - Responsibility 2
+  - Responsibility 3
+
+  Technical Skills:
+  - Skill 1
+  - Skill 2
+  - Skill 3
+
+  Methodologies:
+  - Methodology 1
+  - Methodology 2
+
+  Education:
+  - School: School Name
+  - Degree: Degree Name
+
+  Certifications:
+  - Certification 1
+
+  Languages:
+  - Language 1
+  - Language 2
+
+  Work Authorization:
+  - Work authorization details.
+
+  Relocation:
+  - Relocation preference.
+
+  Salary Expectation:
+    Country:
+      - Amount
+      - negotiable
+
+  Notice Period:
+  - Notice period.
+
+  Driving:
+  - Driving license information.
+
+  Travel:
+  - Travel availability.
+
+  Availability:
+  - Employment preference.
+
+  Health:
+  - Health-related information.
+
+  Background:
+  - Criminal background information.
+
+  Military:
+  - Military service information.
+
+  Conflict of Interest:
+  - Conflict of interest information.
+
+  Referrals:
+  - Referral information.
+
+  General:
+  - Answer all application questions truthfully.
+  - Never exaggerate qualifications.
+  - Never claim skills or certifications you do not have.
+  - Estimate years of experience conservatively.
+  - Keep answers concise and professional.
+  - Return an empty answer if confidence is below the required threshold.

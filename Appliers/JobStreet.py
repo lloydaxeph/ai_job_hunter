@@ -1,5 +1,6 @@
-from pathlib import Path
+import time
 
+from pathlib import Path
 from playwright.sync_api import Page
 
 from Database.JobRepository import JobRepository
@@ -17,88 +18,348 @@ class JobStreetApplier(BaseApplier):
         for step in range(steps):
             if step == 0:
                 self.console.print(f"[cyan]{self.app} using {resume}...[/cyan]")
+                self.handle_aus_work_rights_popup(page)
                 self.upload_resume(page, resume)
                 self.write_cover_letter(page, "")
             else:
-                self.fill_known_fields(page, self.cfg)
-                self.fill_select_questions(page)
-                self.answer_yes_questions(page)
+                self.fill_form(page, threshold=90)
                 if self.check_for_errors(page):
                     if error_intervein:
                         self.wait_for_manual_intervention(page)
                     else:
                         break
 
-            if self.click_continue(page):
-                page.wait_for_load_state("networkidle")
-                continue
-
-            if self.click_next(page):
+            if self.click_button(page, selectors=[
+                "[data-testid='continue-button']",
+                "button:has-text('Next')",
+            ]):
                 page.wait_for_load_state("networkidle")
                 continue
 
             if self.click_submit(page):
                 page.wait_for_timeout(3000)
-                self.console.print(f"[cyan]{self.app} JOB APPLIED![/cyan]")
-                status = JobStatus.APPLIED
-                self.repository.update_status(job_id=job.job_id, status=status)
-                self.repository.update_resume_used(job_id=job.job_id, resume_used=resume)
-                return status
+                return self.submit_success(job, resume)
 
             status = JobStatus.REQUIRES_MANUAL_REVIEW
             self.repository.update_status(job_id=job.job_id, status=status)
             self.console.print(f"[cyan]{self.app} FAILED! Job needs manual review[/cyan]")
             return status
+
         status = JobStatus.REQUIRES_MANUAL_REVIEW
         self.repository.update_status(job_id=job.job_id, status=status)
         self.console.print(f"[cyan]{self.app} FAILED! Job needs manual review[/cyan]")
         return status
 
-    def check_apply_button(self, page: Page) -> str:
-        apply_btn = page.locator(
-            "[data-automation='job-detail-apply']"
-        ).locator("visible=true").first
+    def handle_aus_work_rights_popup(self, page: Page, timeout: float = 3.0, poll_interval: float = 0.25) -> bool:
+        """
+            Wait briefly for the work rights popup to appear.
+            If found, click 'I require sponsorship to work for a new employer'.
 
-        try:
-            apply_btn.wait_for(state="visible", timeout=8000)
-        except TimeoutError:
-            print("[APPLIER] ERROR!: Can't find Apply button.")
-            return JobStatus.REQUIRES_MANUAL_REVIEW
-
-        if apply_btn.inner_text().strip().lower() != "quick apply":
-            return JobStatus.NOT_QUICK_APPLY
-        return "Quick Apply"
-
-    def get_job_description(self, page: Page) -> str:
-        selectors = (
-            "[data-automation='jobAdDetails']",  # JobStreet
-            "[data-testid='jobDescription']",
-            "#job-details",
-            ".jobsearch-jobDescriptionText",
-            ".description__text",
+            Returns:
+                True if the popup was found and handled.
+                False if the popup never appeared.
+            """
+        self.console.print(f"{self.app} Waiting for work rights popup.")
+        popup = page.get_by_text(
+            "Verify your work rights to continue applying",
+            exact=False,
         )
 
-        for selector in selectors:
-            element = page.query_selector(selector)
+        end_time = time.time() + timeout
 
-            if element:
-                text = element.inner_text().strip()
+        while time.time() < end_time:
+            if popup.count() > 0:
+                page.get_by_role(
+                    "button",
+                    name="I require sponsorship to work for a new employer",
+                ).click()
+                return True
 
-                if text:
-                    return text[:3000]
+            time.sleep(poll_interval)
+        return False
 
-        return page.locator("body").inner_text().strip()[:3000]
+    def fill_form(self, page: Page, threshold: int = 90):
+        form = page.locator("form").first
 
-    def click_apply(self, page: Page):
-        page.locator(
-            "[data-automation='job-detail-apply']"
-        ).first.click()
+        questions = []
+        field_map = {}
 
-    def upload_resume(
-        self,
-        page: Page,
-        resume_path: str,
-    ):
+        #
+        # -----------------------------
+        # Text / Number / Textarea
+        # -----------------------------
+        #
+        text_inputs = form.locator(
+            "input[type='text'], input[type='number'], textarea"
+        )
+
+        for i in range(text_inputs.count()):
+            field = text_inputs.nth(i)
+
+            try:
+                if not field.is_visible():
+                    continue
+
+                field_id = field.get_attribute("id")
+
+                if not field_id:
+                    continue
+
+                # Skip already answered
+                current_value = (field.input_value() or "").strip()
+                if current_value:
+                    continue
+
+                label = form.locator(f"label[for='{field_id}']").first
+
+                question = (label.inner_text() or "").strip()
+
+                if not question:
+                    continue
+
+                questions.append({
+                    "id": field_id,
+                    "type": "text",
+                    "question": question,
+                })
+
+                field_map[field_id] = field
+
+            except Exception:
+                continue
+
+        #
+        # -----------------------------
+        # Selects
+        # -----------------------------
+        #
+        selects = form.locator("select")
+
+        for i in range(selects.count()):
+            select = selects.nth(i)
+
+            try:
+                if not select.is_visible():
+                    continue
+
+                select_id = select.get_attribute("id")
+
+                if not select_id:
+                    continue
+
+                # Skip already answered
+                current_value = (select.input_value() or "").strip()
+
+                if current_value:
+                    continue
+
+                label = form.locator(f"label[for='{select_id}']").first
+
+                question = (label.inner_text() or "").strip()
+
+                if not question:
+                    continue
+
+                options = []
+
+                option_nodes = select.locator("option")
+
+                for j in range(option_nodes.count()):
+                    option = option_nodes.nth(j)
+
+                    text = option.inner_text().strip()
+
+                    if not text:
+                        continue
+
+                    options.append(text)
+
+                questions.append({
+                    "id": select_id,
+                    "type": "select",
+                    "question": question,
+                    "choices": options,
+                })
+
+                field_map[select_id] = select
+
+            except Exception:
+                continue
+
+        #
+        # -----------------------------
+        # Radio Groups
+        # -----------------------------
+        #
+        fieldsets = form.locator("fieldset")
+
+        for i in range(fieldsets.count()):
+            fieldset = fieldsets.nth(i)
+
+            try:
+                legend = (
+                    fieldset
+                    .locator("legend")
+                    .first
+                    .inner_text()
+                    .strip()
+                )
+
+                if not legend:
+                    continue
+
+                radios = fieldset.locator("input[type='radio']")
+
+                # Skip already answered
+                already_answered = False
+
+                for j in range(radios.count()):
+                    if radios.nth(j).is_checked():
+                        already_answered = True
+                        break
+
+                if already_answered:
+                    continue
+
+                choices = []
+
+                for j in range(radios.count()):
+                    radio = radios.nth(j)
+
+                    radio_id = radio.get_attribute("id")
+
+                    if not radio_id:
+                        continue
+
+                    label = fieldset.locator(
+                        f"label[for='{radio_id}']"
+                    ).first
+
+                    text = (label.inner_text() or "").strip()
+
+                    if text:
+                        choices.append(text)
+
+                field_id = f"radio_{i}"
+
+                questions.append({
+                    "id": field_id,
+                    "type": "radio",
+                    "question": legend,
+                    "choices": choices,
+                })
+
+                field_map[field_id] = fieldset
+
+            except Exception:
+                continue
+
+        #
+        # Nothing to answer
+        #
+        if not questions:
+            return True
+
+        answers = self.ai_helper.answer_application_questions(questions)
+
+        question_lookup = {
+            q["id"]: q["question"]
+            for q in questions
+        }
+
+        #
+        # Fill answers
+        #
+        for answer in answers:
+            if answer["confidence"] < threshold:
+                self.console.print(
+                    f"{self.app} ERROR! AI confidence only {answer['confidence']}% "
+                    f"for question '{answer['id']}'"
+                )
+                return False
+
+            field = field_map[answer["id"]]
+
+            field_type = next(
+                q["type"]
+                for q in questions
+                if q["id"] == answer["id"]
+            )
+
+            value = str(answer["answer"]).strip()
+
+            #
+            # Text / Number / Textarea
+            #
+            if field_type == "text":
+                field.fill(value)
+
+            #
+            # Dropdown
+            #
+            elif field_type == "select":
+                field.select_option(label=value)
+
+            #
+            # Radio
+            #
+            elif field_type == "radio":
+                try:
+                    field.get_by_label(value, exact=True).check()
+                except Exception:
+                    field.get_by_text(value, exact=True).click()
+
+            question = question_lookup.get(answer["id"], "")
+
+            self.console.print(
+                f"[cyan]Answer:[/cyan] {value} | [yellow]{question}[/yellow]"
+            )
+        self.console.print(
+            f"[cyan]{self.app} Done filling out form... ----------------------------[/cyan]"
+        )
+        return True
+
+    def verify_job_item(self, page: Page, job: JobObject):
+        status, self.apply_btn = self.check_apply_button(
+            page,
+            selector="[data-automation='job-detail-apply']",
+            expected_text="Quick Apply",
+        )
+        return self._is_quick_apply(status, job)
+
+    def is_already_applied(self, page: Page, timeout: float = 5.0) -> bool:
+        locator = page.locator("#applied-date-message").get_by_text(
+            "You applied", exact=False
+        )
+        end_time = time.time() + timeout
+
+        while time.time() < end_time:
+            if locator.count() > 0:
+                return True
+            time.sleep(0.2)
+
+        return False
+
+    def get_job_description(self, page: Page) -> str:
+        try:
+            selectors = (
+                "[data-automation='jobAdDetails']",  # JobStreet
+                "[data-testid='jobDescription']",
+                "#job-details",
+                ".jobsearch-jobDescriptionText",
+                ".description__text",
+            )
+            for selector in selectors:
+                element = page.query_selector(selector)
+                if element:
+                    text = element.inner_text().strip()
+                    if text:
+                        return text[:3000]
+            return page.locator("body").inner_text().strip()[:3000]
+        except Exception:
+            return ""
+
+    def upload_resume(self, page: Page, resume_path: str):
         target_resume = Path(resume_path).name
         resume_container = page.locator("[data-testid='resumeSelectInput']")
         resume_container.wait_for(timeout=10000)
@@ -160,11 +421,7 @@ class JobStreetApplier(BaseApplier):
 
         raise RuntimeError(f"Unable to upload/select resume: {target_resume}" )
 
-    def write_cover_letter(
-            self,
-            page: Page,
-            body: str = "",
-    ):
+    def write_cover_letter(self, page: Page, body: str = ""):
         option = page.locator(
             "[data-testid='coverLetter-method-none']"
         ).first
@@ -179,11 +436,7 @@ class JobStreetApplier(BaseApplier):
         # TODO: Implement custom cover letter.
         pass
 
-    def fill_known_fields(
-        self,
-        page: Page,
-        cfg: dict,
-    ):
+    def fill_known_fields(self, page: Page, cfg: dict):
         personal = cfg["personal"]
         credentials = cfg["credentials"]
 
@@ -219,10 +472,7 @@ class JobStreetApplier(BaseApplier):
             except Exception:
                 continue
 
-    def fill_select_questions(
-        self,
-        page: Page,
-    ):
+    def fill_select_questions(self, page: Page):
         selects = page.locator("select")
 
         for i in range(selects.count()):
@@ -246,10 +496,7 @@ class JobStreetApplier(BaseApplier):
             except Exception:
                 continue
 
-    def answer_yes_questions(
-        self,
-        page: Page,
-    ):
+    def answer_yes_questions(self, page: Page):
         keywords = {
             "software",
             "developer",
@@ -343,37 +590,23 @@ class JobStreetApplier(BaseApplier):
                 and error_panel.is_visible()
         )
 
-    def click_continue(
-            self,
-            page: Page,
-    ) -> bool:
-        button = page.locator(
-            "[data-testid='continue-button']"
-        ).locator("visible=true").first
+    def click_next(self, page: Page) -> bool:
+        selectors = [
+            "[data-testid='continue-button']",
+            "button:has-text('Next')",
+        ]
 
-        if not button.count():
-            return False
+        for selector in selectors:
+            button = page.locator(selector).locator("visible=true").first
 
-        button.scroll_into_view_if_needed(timeout=5000)
-        button.click(timeout=5000)
+            if button.count():
+                button.scroll_into_view_if_needed(timeout=5000)
+                button.click(timeout=5000)
+                return True
 
-        return True
+        return False
 
-    def click_next(
-            self,
-            page: Page,
-    ) -> bool:
-        button = page.locator(
-            "button:has-text('Next')"
-        ).locator("visible=true").first
 
-        if not button.count():
-            return False
-
-        button.scroll_into_view_if_needed(timeout=5000)
-        button.click(timeout=5000)
-
-        return True
 
     def click_submit(self, page: Page) -> bool:
         button = page.locator(

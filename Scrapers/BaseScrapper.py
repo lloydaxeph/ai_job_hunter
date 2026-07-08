@@ -37,7 +37,7 @@ class BaseScraper(ABC):
                         if not job:
                             continue
 
-                        if self.filter and self.filter.is_banned(job):
+                        if self.filter and self.filter.should_skip(job):
                             continue
 
                         if self.repository.save(job):

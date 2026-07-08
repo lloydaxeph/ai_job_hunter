@@ -5,12 +5,92 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 
-class AiJobScorer:
+class AIHelper:
     def __init__(self, cfg: dict):
         load_dotenv()
 
         self.cfg = cfg
         self.client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+    def answer_application_questions(
+            self,
+            questions: list[dict],
+    ) -> list[dict]:
+        ai_cfg = self.cfg["ai"]
+
+        prompt = f"""
+        You are completing a LinkedIn Easy Apply application.
+
+        Candidate Information:
+        {self.cfg["about_me"]}
+
+        Answer ONLY using the information above.
+
+        Rules:
+
+        1. Never invent personal information.
+        2. Never exaggerate qualifications or experience.
+        3. If the question is asking about a technical skill or technology
+           (for example: Python, JavaScript, React, AWS, Docker, Kubernetes,
+           TensorFlow, SQL, etc.):
+
+           - If the skill is explicitly mentioned in the candidate information,
+             use the stated years of experience or estimate conservatively from
+             the candidate's work history.
+
+           - If the skill is NOT mentioned anywhere in the candidate information,
+             answer with exactly "1" year of experience and set confidence to 95.
+
+           - If you are unsure how many years of experience the candidate has with
+             a mentioned technical skill, answer with exactly "1" year and set
+             confidence to 95.
+
+        4. For NON-technical questions (visa sponsorship, salary, disability,
+           criminal record, military service, referrals, relocation, work
+           authorization, etc.), answer ONLY if the candidate information clearly
+           provides the answer.
+
+        5. If you cannot answer a NON-technical question with at least 90%
+           confidence, leave the answer blank and set confidence below 90.
+
+        Questions:
+
+        {json.dumps(questions, indent=2)}
+
+        Return ONLY valid JSON.
+
+        Schema:
+
+        {{
+            "answers": [
+                {{
+                    "id": "<field id>",
+                    "answer": "<answer>",
+                    "confidence": 95
+                }}
+            ]
+        }}
+        """
+
+        resp = self.client.chat.completions.create(
+            model=ai_cfg["model"],
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+
+        raw = resp.choices[0].message.content.strip()
+
+        try:
+            return json.loads(raw)["answers"]
+
+        except Exception:
+            raise RuntimeError(f"Failed parsing AI response:\n{raw}")
 
     def score_job(self, job: dict) -> dict:
         """Ask GPT to score relevance 1-10 and return reasoning."""

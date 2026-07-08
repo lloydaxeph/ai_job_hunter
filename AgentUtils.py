@@ -22,15 +22,40 @@ console = ConsoleManager().instance
 
 class JobFilter:
     """Decides which scraped jobs are worth keeping."""
-    def __init__(self, banned_companies: list[str]) -> None:
-        self.banned = banned_companies
 
-    def is_banned(self, job: JobObject) -> bool:
+    def __init__(
+        self,
+        banned_companies: list[str],
+        avoid_titles: list[str] | None = None,
+    ) -> None:
+        self.banned_companies = [c.lower() for c in banned_companies]
+        self.avoid_titles = [t.lower() for t in (avoid_titles or [])]
+
+    def is_banned_company(self, job: JobObject) -> bool:
         company = job.company.lower()
-        return any(banned in company for banned in self.banned)
+
+        for banned in self.banned_companies:
+            if banned in company:
+                console.print(f"[FILTER] Skipping '{job.title}' at '{job.company}'")
+                return True
+
+        return False
+
+    def is_avoided_title(self, job: JobObject) -> bool:
+        title = job.title.lower()
+
+        for keyword in self.avoid_titles:
+            if keyword in title:
+                console.print(f"[FILTER] Skipping '{job.title}' at '{job.company}'")
+                return True
+
+        return False
 
     def should_skip(self, job: JobObject) -> bool:
-        return self.is_banned(job)
+        return (
+            self.is_banned_company(job)
+            or self.is_avoided_title(job)
+        )
 
 
 class JobScraper:
@@ -144,7 +169,7 @@ class JobApplier:
                 status = applier.apply(page, job)
             if status == JobStatus.APPLIED:
                 jobs_applied += 1
-                console.print(f"[bold green]----------------------------------------------------[/bold green]")
+                console.print(f"[bold green]Jobs Applied: {jobs_applied} --------------------------[/bold green]")
             time.sleep(self.delay)
         return jobs_applied
 

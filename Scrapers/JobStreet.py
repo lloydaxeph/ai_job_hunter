@@ -35,10 +35,8 @@ class JobStreetScraper(BaseScraper):
 
     def get_job_items(self, page: Page):
         items = page.query_selector_all("[data-testid='job-card']")
-
         if not items:
             items = page.query_selector_all("article[class*='job']")
-
         return items
 
     def parse_job(self, item) -> JobObject | None:

@@ -16,6 +16,7 @@ class JobAgentModes(Enum):
     NON_QUICK_APPLY = "NON-QUICK APPLY"
     FAILED = "FAILED RUNS"
     RERUN = "RERUN"
+    DEBUG = "DEBUG"
 
     def __str__(self):
         return self.value

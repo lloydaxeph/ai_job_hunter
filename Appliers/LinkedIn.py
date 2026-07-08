@@ -1,5 +1,6 @@
-from pathlib import Path
+import time
 
+from pathlib import Path
 from playwright.sync_api import Page, TimeoutError
 
 from Database.JobRepository import JobRepository
@@ -9,42 +10,26 @@ from Models import JobObject
 
 
 class LinkedInApplier(BaseApplier):
-    """
-    Applier for LinkedIn's "Easy Apply" flow.
-
-    Unlike JobStreet, LinkedIn's application flow happens inside a modal
-    dialog (`div.jobs-easy-apply-modal`) that is paginated with
-    Next / Review / Submit buttons rather than full page navigations.
-    """
-
     MODAL_SELECTOR = "div.jobs-easy-apply-modal"
-
     def __init__(self, repository: JobRepository, cfg: dict):
         super().__init__(repository, cfg)
+        # check already applied
+        # check fill out things
 
-    # ------------------------------------------------------------------ #
-    # Core apply loop
-    # ------------------------------------------------------------------ #
     def run_apply_step(self, page: Page, job: JobObject, resume: str,
                        steps: int = 20, error_intervein: bool = False) -> str:
         for step in range(steps):
+            page.locator('[role="dialog"]').wait_for(state="visible",timeout=10000)
             if step == 0:
                 self.console.print(f"[cyan]{self.app} using {resume}...[/cyan]")
+                self.click_button(page, selectors=[
+                    "[data-easy-apply-next-button]",
+                ])
                 self.upload_resume(page, resume)
                 self.write_cover_letter(page, "")
             else:
-                self.fill_known_fields(page, self.cfg)
-                self.fill_select_questions(page)
-                self.answer_yes_questions(page)
-                if self.check_for_errors(page):
-                    if error_intervein:
-                        self.wait_for_manual_intervention(page)
-                    else:
-                        break
-
-            if self.click_continue(page):
-                page.wait_for_timeout(1000)
-                continue
+                if not self.fill_form(page, threshold=90):
+                    break
 
             if self.click_next(page):
                 page.wait_for_timeout(1000)
@@ -69,128 +54,382 @@ class LinkedInApplier(BaseApplier):
         self.console.print(f"[cyan]{self.app} FAILED! Job needs manual review[/cyan]")
         return status
 
-    # ------------------------------------------------------------------ #
-    # Apply-button / status checks
-    # ------------------------------------------------------------------ #
-    def check_apply_button(self, page: Page) -> str:
-        apply_btn = page.locator(
-            "button.jobs-apply-button"
-        ).locator("visible=true").first
+    def verify_job_item(self, page: Page, job: JobObject):
+        is_already_applied, status = self._check_already_applied(page, job)
+        if is_already_applied:
+            return False, status
+        status, self.apply_btn = self.check_apply_button(
+            page,
+            selector= "[aria-label*='Apply']",
+            expected_text="Easy Apply"
+        )
+        return self._is_quick_apply(status, job)
 
-        try:
-            apply_btn.wait_for(state="visible", timeout=8000)
-        except TimeoutError:
-            print("[APPLIER] ERROR!: Can't find Apply button.")
-            return JobStatus.REQUIRES_MANUAL_REVIEW
+    def is_already_applied(self, page: Page, timeout: float = 5.0) -> bool:
+        old_locator = page.locator("#applied-date-message").get_by_text(
+            "You applied", exact=False
+        )
 
-        label = apply_btn.inner_text().strip().lower()
+        new_locator = page.get_by_role("heading", name="Application status") \
+            .locator("xpath=ancestor::div[1]/following-sibling::div") \
+            .get_by_text("Application submitted", exact=False)
 
-        if "easy apply" not in label:
-            return JobStatus.NOT_QUICK_APPLY
+        end_time = time.time() + timeout
 
-        return "Quick Apply"
+        while time.time() < end_time:
+            if old_locator.count() > 0 or new_locator.count() > 0:
+                return True
+            time.sleep(0.2)
+
+        return False
+
+    def fill_form(self, page: Page, threshold: int = 90) -> bool:
+        self.console.print(f'{self.app} AI filling out form...')
+        modal = page.locator(self.MODAL_SELECTOR).first
+
+        questions = []
+        field_map = {}
+
+        #
+        # -----------------------------
+        # Text / Numeric inputs
+        # -----------------------------
+        #
+        text_inputs = modal.locator(
+            "input[type='text'], input[type='number']"
+        )
+
+        for i in range(text_inputs.count()):
+            field = text_inputs.nth(i)
+
+            try:
+                if not field.is_visible():
+                    continue
+
+                field_id = field.get_attribute("id")
+
+                if not field_id:
+                    continue
+
+                # Skip already answered fields
+                current_value = (field.input_value() or "").strip()
+                if current_value:
+                    continue
+
+                label = modal.locator(f"label[for='{field_id}']").first
+
+                question = (label.inner_text() or "").strip()
+
+                if not question:
+                    continue
+
+                questions.append({
+                    "id": field_id,
+                    "type": "text",
+                    "question": question,
+                })
+
+                field_map[field_id] = field
+
+            except Exception:
+                continue
+
+        #
+        # -----------------------------
+        # Select dropdowns
+        # -----------------------------
+        #
+        selects = modal.locator("select")
+
+        for i in range(selects.count()):
+            select = selects.nth(i)
+
+            try:
+                if not select.is_visible():
+                    continue
+
+                select_id = select.get_attribute("id")
+
+                if not select_id:
+                    continue
+
+                # Skip already answered dropdowns
+                current_value = (select.input_value() or "").strip()
+                if current_value and current_value.lower() != "select an option":
+                    continue
+
+                label = modal.locator(f"label[for='{select_id}']").first
+
+                question = (label.inner_text() or "").strip()
+
+                options = []
+
+                option_nodes = select.locator("option")
+
+                for j in range(option_nodes.count()):
+                    text = option_nodes.nth(j).inner_text().strip()
+
+                    if text.lower().startswith("select"):
+                        continue
+
+                    options.append(text)
+
+                questions.append({
+                    "id": select_id,
+                    "type": "select",
+                    "question": question,
+                    "choices": options,
+                })
+
+                field_map[select_id] = select
+
+            except Exception:
+                continue
+
+        #
+        # -----------------------------
+        # Radio buttons
+        # -----------------------------
+        #
+        fieldsets = modal.locator("fieldset")
+
+        for i in range(fieldsets.count()):
+            fieldset = fieldsets.nth(i)
+
+            try:
+                legend = (
+                    fieldset
+                    .locator("legend")
+                    .first
+                    .inner_text()
+                    .strip()
+                )
+
+                radios = fieldset.locator("input[type='radio']")
+
+                # Skip already answered radio groups
+                already_answered = False
+
+                for j in range(radios.count()):
+                    if radios.nth(j).is_checked():
+                        already_answered = True
+                        break
+
+                if already_answered:
+                    continue
+
+                choices = []
+
+                for j in range(radios.count()):
+                    radio = radios.nth(j)
+
+                    value = radio.get_attribute("value")
+
+                    if value:
+                        choices.append(value)
+
+                field_id = f"radio_{i}"
+
+                questions.append({
+                    "id": field_id,
+                    "type": "radio",
+                    "question": legend,
+                    "choices": choices,
+                })
+
+                field_map[field_id] = fieldset
+
+            except Exception:
+                continue
+
+        # Nothing to answer
+        if not questions:
+            return True
+
+        answers = self.ai_helper.answer_application_questions(questions)
+
+        question_lookup = {
+            q["id"]: q["question"]
+            for q in questions
+        }
+
+        for answer in answers:
+            if answer["confidence"] < threshold:
+                self.console.print(
+                    f"{self.app} ERROR! AI confidence only {answer['confidence']}% "
+                    f"for question '{answer['id']}'"
+                )
+                return False
+
+            field = field_map[answer["id"]]
+
+            field_type = next(
+                q["type"]
+                for q in questions
+                if q["id"] == answer["id"]
+            )
+
+            value = str(answer["answer"]).strip()
+
+            #
+            # Text
+            #
+            if field_type == "text":
+                field.fill(value)
+
+            #
+            # Dropdown
+            #
+            elif field_type == "select":
+                field.select_option(label=value)
+
+            #
+            # Radio
+            #
+            elif field_type == "radio":
+                label = field.get_by_text(value, exact=True).first
+
+                if label.count():
+                    label.click()
+                else:
+                    radio = field.locator(
+                        f"input[type='radio'][value='{value}']"
+                    ).first
+                    radio.check()
+
+            question = question_lookup.get(answer["id"], "")
+
+            self.console.print(
+                f"[cyan]{self.app} Answer:[/cyan] {value} | [yellow]{question}[/yellow]"
+            )
+        self.console.print(
+            f"[cyan]{self.app} Done filling out form... ----------------------------[/cyan]"
+        )
+        return True
+
+    def write_cover_letter(self, page: Page, body: str = ""):
+        pass
 
     def get_job_description(self, page: Page) -> str:
-        selectors = (
-            "#job-details",
-            ".jobs-description__content",
-            ".jobs-box__html-content",
-            ".jobs-description-content__text",
-        )
+        try:
+            # Expand the description if possible
+            more_btn = page.locator("[data-testid='expandable-text-button']").first
+            if more_btn.count() > 0 and more_btn.is_visible():
+                try:
+                    more_btn.click(timeout=1000)
+                except Exception:
+                    pass
 
-        for selector in selectors:
-            element = page.query_selector(selector)
+            # Method 1: Existing logic (works on some page layouts)
+            try:
+                heading = page.get_by_text("About the job", exact=True)
+                heading.wait_for(timeout=3000)
 
-            if element:
-                text = element.inner_text().strip()
+                description = heading.locator(
+                    "xpath=ancestor::div[1]/following-sibling::p//span[@data-testid='expandable-text-box']"
+                )
 
+                if description.count() > 0:
+                    text = description.first.inner_text().strip()
+                    if text:
+                        return text[:3000]
+            except Exception:
+                pass
+
+            # Method 2: Locate by data-testid (works on most layouts)
+            try:
+                description = page.locator(
+                    "[data-testid='expandable-text-box']"
+                ).first
+
+                description.wait_for(timeout=3000)
+
+                text = description.inner_text().strip()
                 if text:
                     return text[:3000]
+            except Exception:
+                pass
 
-        return page.locator("body").inner_text().strip()[:3000]
+            # Method 3: Relative to the H2
+            try:
+                description = page.locator(
+                    "//h2[normalize-space()='About the job']"
+                    "/following-sibling::p"
+                    "//span[@data-testid='expandable-text-box']"
+                ).first
 
-    def click_apply(self, page: Page):
-        page.locator(
-            "button.jobs-apply-button"
-        ).first.click()
+                if description.count() > 0:
+                    text = description.inner_text().strip()
+                    if text:
+                        return text[:3000]
+            except Exception:
+                pass
 
-        page.locator(self.MODAL_SELECTOR).first.wait_for(
-            state="visible", timeout=10000
-        )
+        except Exception:
+            pass
 
-    # ------------------------------------------------------------------ #
-    # Resume / cover letter
-    # ------------------------------------------------------------------ #
+        return ""
+
     def upload_resume(
-        self,
-        page: Page,
-        resume_path: str,
+            self,
+            page: Page,
+            resume_path: str,
     ):
         target_resume = Path(resume_path).name
         modal = page.locator(self.MODAL_SELECTOR).first
 
-        # LinkedIn shows a list of previously-uploaded resumes as selectable
-        # cards, each with the filename in a title/span element.
-        resume_cards = modal.locator("[data-test-resume-title], .jobs-document-upload-redesign-card__file-name")
+        #
+        # 1. Is the correct resume already selected?
+        #
+        selected = modal.locator(
+            ".jobs-document-upload-redesign-card__container--selected "
+            ".jobs-document-upload-redesign-card__file-name"
+        ).first
 
-        if resume_cards.count():
-            for i in range(resume_cards.count()):
-                card = resume_cards.nth(i)
-                text = (card.text_content() or "").strip()
+        if selected.count():
+            selected_name = (selected.text_content() or "").strip()
 
-                if target_resume in text:
-                    card.click()
-                    page.wait_for_timeout(500)
-                    return
+            if selected_name == target_resume:
+                return
 
-        # Otherwise, upload a new resume via the hidden file input.
+        #
+        # 2. Is the resume already uploaded?
+        #
+        cards = modal.locator(".jobs-document-upload-redesign-card__container")
+
+        for i in range(cards.count()):
+            card = cards.nth(i)
+
+            filename = (
+                    card.locator(".jobs-document-upload-redesign-card__file-name")
+                    .text_content() or ""
+            ).strip()
+
+            if filename != target_resume:
+                continue
+
+            # Select this resume
+            card.click()
+            page.wait_for_timeout(500)
+            return
+
+        #
+        # 3. Upload new resume
+        #
         upload = modal.locator("input[type='file']").first
 
-        if not upload.count():
+        if upload.count() == 0:
             raise RuntimeError("Resume upload input not found.")
 
         upload.set_input_files(str(Path(resume_path).resolve()))
-        page.wait_for_timeout(1500)
 
-        try:
-            modal.locator(
-                f"text={target_resume}"
-            ).first.wait_for(state="visible", timeout=10000)
-        except TimeoutError:
-            # Some LinkedIn variants auto-select the newly uploaded resume
-            # without surfacing its filename anywhere else in the DOM.
-            pass
+        #
+        # 4. Wait until it appears
+        #
+        modal.locator(
+            f".jobs-document-upload-redesign-card__file-name:text-is('{target_resume}')"
+        ).wait_for(timeout=10000)
 
-    def write_cover_letter(
-        self,
-        page: Page,
-        body: str = "",
-    ):
-        modal = page.locator(self.MODAL_SELECTOR).first
-
-        textarea = modal.locator(
-            "textarea[id*='coverLetter' i], textarea[name*='coverLetter' i]"
-        ).first
-
-        if not textarea.count():
-            return
-
-        try:
-            if not textarea.is_visible():
-                return
-        except Exception:
-            return
-
-        if not body or not body.strip():
-            return
-
-        # TODO: Implement custom cover letter.
-        textarea.fill(body)
-        page.wait_for_timeout(300)
-
-    # ------------------------------------------------------------------ #
-    # Field / question filling
-    # ------------------------------------------------------------------ #
     def fill_known_fields(
         self,
         page: Page,
@@ -380,13 +619,17 @@ class LinkedInApplier(BaseApplier):
     # Modal navigation buttons
     # ------------------------------------------------------------------ #
     def click_continue(
-        self,
-        page: Page,
+            self,
+            page: Page,
     ) -> bool:
-        # LinkedIn does not have a distinct "Continue" step separate from
-        # "Next" / "Review" — this is a no-op kept only to satisfy the
-        # BaseApplier contract.
-        return False
+        try:
+            button = page.locator("[data-easy-apply-next-button]").first
+            button.wait_for(state="visible", timeout=5000)
+            button.click()
+            return True
+
+        except TimeoutError:
+            return False
 
     def click_next(
         self,

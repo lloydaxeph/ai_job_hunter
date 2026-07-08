@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from playwright.sync_api import sync_playwright, Page
 
-from Config import load_config, get_banned_companies
+from Config import load_config, get_banned_companies, get_banned_titles
 from AgentUtils import JobScraper, JobApplier, JobFilter, SessionManager
 from Logger import ConsoleManager
 from Constants import JobStatus, JobAgentModes
 
 from Database.JobRepository import JobRepository
 from Database.Database import Database
+from Models.JobObject import JobObject
 
 
 class JobAgent:
@@ -22,7 +23,7 @@ class JobAgent:
         self.headless: bool = apply_cfg["headless"]
 
         # Utils
-        job_filter = JobFilter(banned_companies=get_banned_companies(cfg))
+        job_filter = JobFilter(banned_companies=get_banned_companies(cfg), avoid_titles=get_banned_titles(cfg))
         self.console = ConsoleManager().instance
         self.database = Database()
         self.repository = JobRepository(self.database.connection)
@@ -93,6 +94,31 @@ class JobAgent:
             self.console.print(f"[bold green][AGENT] ✓ Done for site: {site}. Check Data/applications.csv[/bold green]")
             self.console.print(f"[bold green]----------------------------------------------------[/bold green]")
 
+    def debug(self, job: JobObject) -> None:
+        with sync_playwright() as pw:
+            session_manager, browser, context = self._create_session(pw, job.site)
+            try:
+                session_manager.ensure_logged_in(context)
+
+                page: Page = context.new_page()
+                page.goto(job.url, wait_until="load")
+
+                applier = self.applier.get_applier(job.site)
+                if applier is None:
+                    self.console.print(
+                        f"[red][DEBUG] No applier registered for '{job.site}'[/red]"
+                    )
+                    return
+                status = applier.apply(page, job)
+
+                self.console.print(f"[green][DEBUG] Result: {status}[/green]")
+
+                input("[DEBUG] Press Enter to close...")
+
+            finally:
+                context.close()
+                browser.close()
+
     def _get_jobs_to_apply(self, jobs: list):
         if self.auto_apply:
             self.console.print("[cyan][AGENT] --- AUTO APPLY ENABLED ---[/cyan]")
@@ -116,7 +142,16 @@ def main(mode, max_jobs):
     print(f"TOTAL EXPECTED JOBS: {total_expected_jobs}")
     print(f"----------------------------------------------------")
     bot = JobAgent(cfg)
-    bot.run(mode)
+    if mode != JobAgentModes.DEBUG:
+        bot.run(mode)
+    else:
+        debug_job = JobObject(
+            title="Software Developer",
+            company="Vectiq Pty Ltd",
+            url="https://sg.jobstreet.com/job/92821717",
+            site="jobstreet",
+        )
+        bot.debug(job=debug_job)
 
 
 if __name__ == "__main__":
@@ -126,7 +161,3 @@ if __name__ == "__main__":
 
     # --------------------------------------------------------------------------------
     main(mode, max_jobs)
-    # TODO:
-    # Dynamic Session Manager
-    # Manual Review process
-    # Not Quick Apply process
