@@ -30,6 +30,14 @@ class JobAgent:
         self.scraper = JobScraper(search_cfg=cfg["search"], job_filter=job_filter, repository=self.repository)
         self.applier = JobApplier(apply_cfg=apply_cfg, full_cfg=cfg, repository=self.repository)
 
+    def _get_jobs_to_apply(self, jobs: list):
+        if self.auto_apply:
+            self.console.print("[cyan][AGENT] --- AUTO APPLY ENABLED ---[/cyan]")
+            return jobs
+
+        self.console.print("[yellow][AGENT] Manual application is not yet implemented.[/yellow]")
+        return []
+
     def _create_session(self, pw, site: str):
         session_manager = SessionManager(site)
         browser = pw.chromium.launch(headless=self.headless)
@@ -105,59 +113,12 @@ class JobAgent:
 
                 applier = self.applier.get_applier(job.site)
                 if applier is None:
-                    self.console.print(
-                        f"[red][DEBUG] No applier registered for '{job.site}'[/red]"
-                    )
+                    self.console.print(f"[red][DEBUG] No applier registered for '{job.site}'[/red]")
                     return
                 status = applier.apply(page, job)
-
                 self.console.print(f"[green][DEBUG] Result: {status}[/green]")
-
-                input("[DEBUG] Press Enter to close...")
-
+                input("[DEBUG] Press Enter to close... --------------------------------------------")
             finally:
                 context.close()
                 browser.close()
 
-    def _get_jobs_to_apply(self, jobs: list):
-        if self.auto_apply:
-            self.console.print("[cyan][AGENT] --- AUTO APPLY ENABLED ---[/cyan]")
-            return jobs
-
-        self.console.print("[yellow][AGENT] Manual application is not yet implemented.[/yellow]")
-        return []
-
-
-def main(mode, max_jobs):
-    cfg = load_config()
-    keyword_num = len(cfg["search"]["keywords"])
-    location_num = len(cfg["search"]["locations"])
-    if max_jobs:
-        max_results_per_site = max_jobs // (keyword_num * location_num)
-        cfg["search"]["max_results_per_site"] = max_results_per_site
-    total_expected_jobs = int(cfg["search"]["max_results_per_site"]) * (keyword_num * location_num)
-
-    print("JobHunter Agent INITIATED!")
-    print(f"MODE: {mode}")
-    print(f"TOTAL EXPECTED JOBS: {total_expected_jobs}")
-    print(f"----------------------------------------------------")
-    bot = JobAgent(cfg)
-    if mode != JobAgentModes.DEBUG:
-        bot.run(mode)
-    else:
-        debug_job = JobObject(
-            title="Software Developer",
-            company="Vectiq Pty Ltd",
-            url="https://sg.jobstreet.com/job/92821717",
-            site="jobstreet",
-        )
-        bot.debug(job=debug_job)
-
-
-if __name__ == "__main__":
-    # EDIT HERE ----------------------------------------------------------------------
-    mode = JobAgentModes.QUICK_APPLY
-    max_jobs = None
-
-    # --------------------------------------------------------------------------------
-    main(mode, max_jobs)

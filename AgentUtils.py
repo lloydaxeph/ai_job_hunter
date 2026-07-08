@@ -89,8 +89,6 @@ class JobScraper:
                     key_loc_jobs = scraper.scrape(page, keyword, location, self.cfg["max_results_per_site"])
                     site_jobs = site_jobs + key_loc_jobs
 
-
-        #final_job_list = self.repository.get_jobs_by_status(status=JobStatus.FOUND)
         final_job_list = site_jobs
         console.print(f"[green][SCRAPPER] Found {len(final_job_list)} jobs from {site}.[/green]")
         return final_job_list
@@ -100,7 +98,6 @@ class JobReviewer:
     """Displays matched jobs and lets the user decide which ones to apply to."""
     def select(self, jobs: list[JobObject]) -> list[JobObject]:
         self._print_table(jobs)
-
         while True:
             raw = input("\nSelect jobs (e.g. 1,3,5 | all | none): ").strip().lower()
 
@@ -133,7 +130,6 @@ class JobReviewer:
 
 class JobApplier:
     """Submits applications."""
-
     def __init__(
         self,
         apply_cfg: dict,
@@ -167,6 +163,7 @@ class JobApplier:
                 status = applier.manual_apply(page, job)
             else:
                 status = applier.apply(page, job)
+
             if status == JobStatus.APPLIED:
                 jobs_applied += 1
                 console.print(f"[bold green]Jobs Applied: {jobs_applied} --------------------------[/bold green]")

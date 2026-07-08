@@ -24,16 +24,21 @@ class LinkedInScraper(BaseScraper):
     def build_page_url(self, url: str, page_number: int) -> str:
         if page_number == 1:
             return url
-
-        # LinkedIn paginates via a "start" offset, 25 results per page
         start = (page_number - 1) * 25
         return f"{url}&start={start}"
 
     def has_next_page(self, page: Page) -> bool:
-        # LinkedIn's public/guest search doesn't expose a reliable "next" button;
-        # infer more pages exist if a full page of cards was returned
-        items = self.get_job_items(page)
-        return len(items) >= 25
+        selectors = [
+            "button[aria-label='View next page']",
+            "button.jobs-search-pagination__button--next",
+        ]
+
+        for selector in selectors:
+            btn = page.query_selector(selector)
+            if btn and btn.get_attribute("disabled") is None:
+                return True
+
+        return False
 
     def get_job_items(self, page: Page):
         selectors = [
