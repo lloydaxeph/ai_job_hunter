@@ -53,6 +53,20 @@ class AIHelper:
         5. If you cannot answer a NON-technical question with at least 90%
            confidence, leave the answer blank and set confidence below 90.
 
+        6. If the question is asking about salary (expected salary, salary
+           requirement, desired compensation, etc.):
+
+           - Answer with ONLY numbers (digits), no currency symbols, commas,
+             words, or ranges (for example: "80000", not "$80,000" or "80k").
+
+           - Check whether the question is asking for a monthly or annual
+             figure. If it is annual, convert to an annual number; if it is
+             monthly, convert to a monthly number. Use the candidate
+             information to determine the base figure and convert accordingly
+             (annual = monthly * 12).
+
+           - If the question does not specify monthly or annual, assume annual.
+
         Questions:
 
         {json.dumps(questions, indent=2)}

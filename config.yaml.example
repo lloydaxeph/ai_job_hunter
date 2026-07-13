@@ -1,0 +1,167 @@
+# ─── Search Preferences ───────────────────────────────────────────
+search:
+  keywords: ["keyword1", "keyword2"]
+  locations: ["location1", "location2"]
+  max_results_per_site: 10
+  sites: ["site1", "site2"]
+
+# ─── Resume Routing Rules ─────────────────────────────────────────
+resumes:
+  - file: "Resumes/resume1.pdf"
+    use_when:
+      - keyword1
+      - keyword2
+
+  - file: "Resumes/resume2.pdf"
+    use_when:
+      - keyword3
+      - keyword4
+
+# ─── AI Matching ──────────────────────────────────────────────────
+ai:
+  model: "model-name"
+  years_experience: 0
+  score_threshold: 7
+
+  personal_summary: |
+    Brief professional summary goes here.
+
+  work_experience:
+    - title: "Job Title"
+      company: "Company Name"
+      duration: "Start Date - End Date"
+      details: |
+        - Achievement or responsibility
+        - Achievement or responsibility
+        - Achievement or responsibility
+
+  skills:
+    - Skill 1
+    - Skill 2
+    - Skill 3
+
+  education:
+    - degree: "Degree Name"
+      school: "School Name"
+      year: "Year"
+
+  languages:
+    - Language 1
+    - Language 2
+
+# ─── Banned List ──────────────────────────────────────────────────
+banned:
+  companies:
+    - "Company 1"
+    - "Company 2"
+
+  titles:
+    - "Title 1"
+    - "Title 2"
+
+# ─── Personal Info for Forms (non-sensitive) ──────────────────────
+# NOTE: Email & passwords go in .env — only safe-to-share info here
+personal:
+  first_name: "First Name"
+  last_name: "Last Name"
+  middle_name: "Middle Name"
+  phone: "+10000000000"
+  linkedin: "https://linkedin.com/in/username"
+  github: "https://github.com/username"
+  portfolio: "https://portfolio.com"
+  work_auth: "need_sponsorship"   # yes / no / need_sponsorship
+
+# ─── Application Settings ─────────────────────────────────────────
+apply:
+  auto_apply: true
+  delay_between_apps: 3
+  max_apps_per_run: 100
+  headless: false
+
+# ─── Web Dashboard ────────────────────────────────────────────────
+dashboard:
+  enabled: true
+  host: "127.0.0.1"
+  auto_open_browser: true
+
+# ─── ABOUT ME ─────────────────────────────────────────────────────
+about_me: |
+  Personal Information:
+  - Name: Your Name
+  - Gender: Your Gender
+  - Date of Birth: Month Day, Year
+  - Nationality: Your Nationality
+  - Citizenship: Your Country
+
+  I am a [Job Title] with [X] years of professional experience.
+
+  I currently work at [Company Name], where I am responsible for:
+  - Responsibility 1
+  - Responsibility 2
+  - Responsibility 3
+
+  Technical Skills:
+  - Skill 1
+  - Skill 2
+  - Skill 3
+
+  Methodologies:
+  - Methodology 1
+  - Methodology 2
+
+  Education:
+  - School: School Name
+  - Degree: Degree Name
+
+  Certifications:
+  - Certification 1
+
+  Languages:
+  - Language 1
+  - Language 2
+
+  Work Authorization:
+  - Work authorization details.
+
+  Relocation:
+  - Relocation preference.
+
+  Salary Expectation:
+    Country:
+      - Amount
+      - negotiable
+
+  Notice Period:
+  - Notice period.
+
+  Driving:
+  - Driving license information.
+
+  Travel:
+  - Travel availability.
+
+  Availability:
+  - Employment preference.
+
+  Health:
+  - Health-related information.
+
+  Background:
+  - Criminal background information.
+
+  Military:
+  - Military service information.
+
+  Conflict of Interest:
+  - Conflict of interest information.
+
+  Referrals:
+  - Referral information.
+
+  General:
+  - Answer all application questions truthfully.
+  - Never exaggerate qualifications.
+  - Never claim skills or certifications you do not have.
+  - Estimate years of experience conservatively.
+  - Keep answers concise and professional.
+  - Return an empty answer if confidence is below the required threshold.

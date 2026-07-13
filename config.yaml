@@ -1,167 +1,338 @@
 # ─── Search Preferences ───────────────────────────────────────────
 search:
-  keywords: ["keyword1", "keyword2"]
-  locations: ["location1", "location2"]
-  max_results_per_site: 10
-  sites: ["site1", "site2"]
+  keywords: ["software engineer", "ai engineer", "mlops", "robotics", "software developer"]
+  locations: ["singapore", "australia"]     # or "Cebu", "Manila", "Remote" etc.
+  max_results_per_site: 50  # per keyword per site
+  sites: ["jobstreet","linkedin"]
 
 # ─── Resume Routing Rules ─────────────────────────────────────────
 resumes:
-  - file: "Resumes/resume1.pdf"
+  - file: "Resumes/Lloyd Acha - CV.pdf"
     use_when:
-      - keyword1
-      - keyword2
+      - default
+      - software
 
-  - file: "Resumes/resume2.pdf"
+  - file: "Resumes/Lloyd Acha - CV.pdf"
     use_when:
-      - keyword3
-      - keyword4
+      - ai
+      - ml
+      - machine learning
+      - llm
+      - computer vision
+
+  - file: "Resumes/Lloyd Acha - CV.pdf"
+    use_when:
+      - robotics
+      - mechanical
+      - mechatronics
+
 
 # ─── AI Matching ──────────────────────────────────────────────────
 ai:
-  model: "model-name"
-  years_experience: 0
-  score_threshold: 7
+  model: "gpt-4o-mini"
+  years_experience: 5
+  score_threshold: 7 # 0-10
 
   personal_summary: |
-    Brief professional summary goes here.
+    AI / MLOps engineer with 4+ years building and deploying production AI computer
+    vision and LLM systems, working fully remote on a globally distributed AI team.
+    Handles the full ML lifecycle: model development, CI/CD, deployment, and production
+    monitoring. Strong mechanical and software engineering foundation from a mechanical
+    engineering background. Fast learner, comfortable picking up new tools, frameworks,
+    and domains quickly. Collaborative across cross-cultural, cross-functional teams.
 
   work_experience:
-    - title: "Job Title"
-      company: "Company Name"
-      duration: "Start Date - End Date"
+    - title: "Senior ModelOps Engineer"
+      company: "Trax Retail"
+      duration: "Aug 2025 - Present"
       details: |
-        - Achievement or responsibility
-        - Achievement or responsibility
-        - Achievement or responsibility
+        - Led design and deployment of CI/CD pipelines automating the full ML lifecycle
+          (data preprocessing, training, validation, deployment, analytics).
+        - Developed an AI agent for Jira ticket triage using Generative AI, Camunda,
+          AWS Bedrock, Claude, and RAG, reducing manual workload by 75%.
+        - Built AI-powered monitoring dashboards to track live model performance and
+          reliability in production; led diagnosis of underperforming models through
+          statistical analysis, retraining, and hyperparameter tuning.
+        - Modernized legacy services with FastAPI, MongoDB, and AWS Lambda, introducing
+          unit testing, API redesign, and documentation standards.
+        - Maintained the Image Recognition codebase; reviewed and approved code changes,
+          enforcing coding standards and engineering best practices.
+
+    - title: "ModelOps Engineer"
+      company: "Trax Retail"
+      duration: "May 2022 - Aug 2025"
+      details: |
+        - Developed, trained, and deployed AI computer vision models across 300+
+          different client projects.
+        - Built and deployed containerized ML workflows using Docker and Kubernetes,
+          improving model reliability and portability across cloud-native environments.
+        - Contributed to CI/CD pipeline development supporting data preprocessing,
+          model training, and deployment workflows.
+        - Core contributor and founding member of the global AI team, collaborating
+          with engineers and data scientists across the organization.
+
+    - title: "Software Engineer"
+      company: "DevSoft Philippines"
+      duration: "Apr 2021 - May 2022"
+      details: |
+        - Developed clean, maintainable, scalable C# solutions integrating DevExpress
+          components across 100+ client-specific enterprise applications.
+        - Led technical support and solution development for C#, ASP.NET Web Forms,
+          ASP.NET MVC, and Blazor applications.
+        - Provided expert technical consultation to enterprise clients on DevExpress
+          UI components in production applications.
+        - Authored 100+ technical code examples and implementation guides published
+          on the DevExpress website.
+        - Diagnosed, debugged, and resolved software defects while enhancing legacy
+          codebases for performance, stability, and maintainability.
+
+    - title: "Automation Equipment Field Service Engineer"
+      company: "P.IMES Corporation"
+      duration: "Jan 2020 - Apr 2021"
+      details: |
+        - Managed nationwide service operations across the Philippines for industrial
+          automation systems: project execution, field service, customer support.
+        - Assembled, commissioned, diagnosed, and troubleshot industrial robots and
+          automated machinery.
+        - Reduced operational costs by 50% by leading cross-functional projects and
+          optimizing workflows.
+        - Contributed to mechanical and electrical design of five custom industrial
+          automation machines.
+        - Developed standardized engineering procedures and built 10+ custom in-house
+          tools, improving efficiency and productivity by 75%.
 
   skills:
-    - Skill 1
-    - Skill 2
-    - Skill 3
+    - Python
+    - C++
+    - C#
+    - ASP.NET
+    - Django
+    - Flask
+    - JavaScript
+    - HTML/CSS
+    - REST APIs
+    - Git
+    - SQL
+    - Jira
+    - PyTorch
+    - TensorFlow
+    - Keras
+    - scikit-learn
+    - NumPy
+    - Pandas
+    - OpenCV
+    - Computer Vision
+    - Retrieval-Augmented Generation (RAG)
+    - LLM Agents
+    - Claude
+    - AWS Bedrock
+    - Generative AI
+    - Hyperparameter Tuning
+    - Docker
+    - Kubernetes
+    - CI/CD
+    - AWS
+    - AWS Lambda
+    - FastAPI
+    - MongoDB
+    - MySQL
+    - PostgreSQL
+    - Camunda
+    - MLOps
+    - ModelOps
+    - Mechanical/mechatronic design
+    - Electrical engineering
+    - AutoCAD
+    - SolidWorks
+    - MATLAB
+    - ROS
+    - Welding
+    - Carpentry
+    - Industrial automation
+    - Robotics
+    - Embedded systems
 
   education:
-    - degree: "Degree Name"
-      school: "School Name"
-      year: "Year"
+    - degree: "Bachelor of Science in Mechanical Engineering"
+      school: "Central Philippine University"
+      year: "2018"
 
   languages:
-    - Language 1
-    - Language 2
+    - Filipino (Native)
+    - English (IELTS C1)
+    - German (TELC B1)
 
-# ─── Banned List ──────────────────────────────────────────────────
+
+# --- Banned list ---
 banned:
-  companies:
-    - "Company 1"
-    - "Company 2"
+  companies: ["PPSI", "ProgressPro Services Inc.", "Trax", "Trax Retail", "FORM"]
+  titles: [
+  "sales",
+  "account executive",
+  "business development",
+  "customer success",
+  "pre sales",
+  "cyber security",
+  "cybersecurity",
+  "security",
+  "soc",
+  "information security",
+  "penetration tester",
+  "pentest",
+  "blue team",
+  "red team",
+  "intern",
+  "internship",
+  "trainee",
+  "apprentice",
+  "lead",
+  "principal",
+  "manager",
+  "director",
+  ]
 
-  titles:
-    - "Title 1"
-    - "Title 2"
-
-# ─── Personal Info for Forms (non-sensitive) ──────────────────────
+# ─── Personal Info for Forms (non-sensitive) ─────────────────────
 # NOTE: Email & passwords go in .env — only safe-to-share info here
 personal:
-  first_name: "First Name"
-  last_name: "Last Name"
-  middle_name: "Middle Name"
-  phone: "+10000000000"
-  linkedin: "https://linkedin.com/in/username"
-  github: "https://github.com/username"
-  portfolio: "https://portfolio.com"
-  work_auth: "need_sponsorship"   # yes / no / need_sponsorship
+  first_name: "Lloyd Nikko"
+  last_name: "Acha"
+  middle_name: "Jusa"
+  phone: "+639394359280"
+  linkedin: "https://www.linkedin.com/in/lloydacha"
+  github: "https://github.com/lloydaxeph"
+  portfolio: "https://lloydaxeph.github.io"
+  work_auth: "need_sponsorship"           # "yes" / "no" / "need_sponsorship"
 
 # ─── Application Settings ─────────────────────────────────────────
 apply:
-  auto_apply: true
-  delay_between_apps: 3
-  max_apps_per_run: 100
-  headless: false
+  auto_apply: true        # START with false — review first!
+  delay_between_apps: 3    # seconds between applications
+  max_apps_per_run: 500     # safety cap per session
+  headless: false          # false = you can see browser; true = invisible
 
 # ─── Web Dashboard ────────────────────────────────────────────────
 dashboard:
   enabled: true
-  host: "127.0.0.1"
-  auto_open_browser: true
+  host: "127.0.0.1"         # localhost only; don't expose to internet
+  auto_open_browser: true  # open dashboard when agent starts
 
-# ─── ABOUT ME ─────────────────────────────────────────────────────
+# ─── ABOUT ME ────────────────────────────────────────────────
 about_me: |
   Personal Information:
-  - Name: Your Name
-  - Gender: Your Gender
-  - Date of Birth: Month Day, Year
-  - Nationality: Your Nationality
-  - Citizenship: Your Country
+  - Name: Lloyd Acha
+  - Gender: Male
+  - Date of Birth: August 28, 1997
+  - Nationality: Filipino
+  - Citizenship: Philippines
 
-  I am a [Job Title] with [X] years of professional experience.
+  I am a Software Engineer and Senior ModelOps Engineer with 6 years of professional experience.
 
-  I currently work at [Company Name], where I am responsible for:
-  - Responsibility 1
-  - Responsibility 2
-  - Responsibility 3
+  I currently work remotely at Trax Retail, where I develop and maintain machine learning infrastructure, computer vision deployment pipelines, CI/CD workflows, cloud deployments, APIs, and automation tools.
 
-  Technical Skills:
-  - Skill 1
-  - Skill 2
-  - Skill 3
+  Technical Skills (all 5 years):
+  - Python
+  - JavaScript
+  - C#
+  - C++
+  - Django
+  - FastAPI
+  - React
+  - TensorFlow
+  - PyTorch
+  - Docker
+  - Kubernetes
+  - Linux
+  - Git
+  - AWS
+  - GCP
+  - SQL
+  - MongoDB
+  - REST APIs
+  - Computer Vision
+  - Machine Learning
+  - Deep Learning
+  - DevOps
+  - CI/CD
+  - Bash
+  - Quality Assurance (QA)
+  - Quality Control (QC)
 
   Methodologies:
-  - Methodology 1
-  - Methodology 2
+  - Agile
+  - Scrum
+  - Kanban
 
   Education:
-  - School: School Name
-  - Degree: Degree Name
-
-  Certifications:
-  - Certification 1
+  - School: Central Philippine University
+  - Course: BS Mechanical Engineering
+  
+  Other Professional Background
+  - Licensed Mechanical Engineer (Philippines)
 
   Languages:
-  - Language 1
-  - Language 2
+  - English (Fluent)
+  - Filipino (Native)
+  - German (Conversational)
 
   Work Authorization:
-  - Work authorization details.
+  - I am a Philippine citizen.
+  - I currently require employer sponsorship to work in other countries.
 
   Relocation:
-  - Relocation preference.
+  - Willing to relocate internationally.
+  - Open to remote, hybrid, or onsite work.
 
   Salary Expectation:
-    Country:
-      - Amount
+    Singapore:
+      - 6000 SGD / month
       - negotiable
+    Australia:
+      - 7600 AUD / month
+      - negotiable
+    United Arab Emirates (UAE):
+      - 20000 AED / month
+      -negotiable
 
   Notice Period:
-  - Notice period.
+  - 30 days or less if needed
 
   Driving:
-  - Driving license information.
+  - I have a valid driver's license.
 
   Travel:
-  - Travel availability.
+  - Willing to travel if required.
 
   Availability:
-  - Employment preference.
+  - Full-time preferred.
 
   Health:
-  - Health-related information.
+  - I do not have any disabilities.
+  - I do not have any medical conditions requiring ongoing treatment or health maintenance.
+  - I do not require workplace accommodations due to a disability.
 
   Background:
-  - Criminal background information.
+  - I have no criminal record.
+  - I have never been convicted of a crime.
+  - I am not currently involved in any criminal investigation.
 
   Military:
-  - Military service information.
+  - I have never served in the military.
+  - I have no military obligations or military status.
 
   Conflict of Interest:
-  - Conflict of interest information.
+  - I am not related to any government official.
+  - I am not related to any person holding public office.
+  - I am not related to any person in a financial decision-making or fiduciary position that would create a conflict of interest.
 
   Referrals:
-  - Referral information.
+  - I do not have relatives working abroad.
+  - I do not know anyone working at the companies I apply to unless explicitly stated elsewhere.
+  - If asked whether I know someone at the company or have been referred by an employee, answer "No."
 
   General:
   - Answer all application questions truthfully.
-  - Never exaggerate qualifications.
-  - Never claim skills or certifications you do not have.
-  - Estimate years of experience conservatively.
-  - Keep answers concise and professional.
-  - Return an empty answer if confidence is below the required threshold.
+  - Never exaggerate my experience or qualifications.
+  - Never claim certifications, degrees, visas, work authorization, or skills that I do not have.
+  - If asked how many years of experience I have with a technology, estimate conservatively based on my actual work history.
+  - If asked an open-ended question, answer concisely and professionally.
+  - If the answer cannot be determined with at least 90% confidence from the information above, return an empty answer with confidence below 90.
